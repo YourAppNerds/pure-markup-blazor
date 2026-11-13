@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <NoWarn>$(NoWarn);BL0006</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="BenchmarkDotNet" />
+    <ProjectReference Include="..\..\src\PureMarkup.Blazor\PureMarkup.Blazor.csproj" />
+    <ProjectReference Include="..\Baseline\Baseline.csproj" />
+  </ItemGroup>
+</Project>
