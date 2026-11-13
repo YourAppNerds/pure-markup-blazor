@@ -17,6 +17,11 @@ function check(cond, msg) { if (!cond) throw new Error(msg); console.log(`ok  ${
 await page.goto(base + '/');
 check((await page.textContent('#renderer')).includes('Static'), 'home renders statically');
 check((await page.getAttribute('#name', 'name')) === 'Model.Name', 'SSR input name comes from the Bind expression');
+check(/FormCss_Field-[a-z0-9]{6}/.test(await page.getAttribute('#name', 'class') ?? ''), 'InputText preset (AppPresets.Field) adds its rule class');
+check((await page.getAttribute('#name', 'autocomplete')) === 'off', 'InputText preset sets a captured attribute');
+check((await page.getAttribute('#submit', 'type')) === 'submit' && /(^| )btn( |$)/.test(await page.getAttribute('#submit', 'class') ?? ''),
+  '.With chain (AppPresets.SubmitButton): derived type wins, base classes kept');
+check((await page.$eval('#name', e => getComputedStyle(e).borderTopStyle)) === 'solid', 'preset rule CSS applies to the input');
 await page.fill('#name', 'Kyle');
 await page.click('#submit');
 await page.waitForSelector('#greeting');

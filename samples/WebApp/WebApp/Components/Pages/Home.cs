@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Forms;
+using WebApp.Client.Theme;
 
 namespace WebApp.Components.Pages;
 
@@ -24,8 +25,8 @@ public sealed class Home : MarkupComponent
             .FormName("greet")
             .OnValidSubmit(Submit)
             .ChildContent(_ => Fragment(
-                Comp<InputText>().Attr("id", "name").Bind(() => Model!.Name),
-                Button().Id("submit").Type(ButtonType.Submit).Text("Greet"))),
+                Comp<InputText>().Use(AppPresets.Field).Attr("id", "name").Bind(() => Model!.Name),
+                Button().Id("submit").Use(AppPresets.SubmitButton).Text("Greet"))),
         If(_greeting is not null, () => P().Id("greeting").Text(_greeting)));
 
     public sealed class GreetModel

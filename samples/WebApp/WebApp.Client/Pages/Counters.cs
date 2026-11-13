@@ -14,7 +14,7 @@ public abstract class CounterBase : MarkupComponent
         P().Id("renderer").Text($"Renderer: {RendererInfo.Name}; interactive: {RendererInfo.IsInteractive}"),
         Div().Id("bar").Class(CounterCss.Bar).Set(CounterCss.Fill, Percent(Math.Min(_count * 10, 100))),
         P().Id("count").Class(CounterCss.Count).Text($"Current count: {_count}"),
-        Button().Id("inc").Class("btn").Class(CounterCss.Button).OnClick(() => _count++).Text("Click me"));
+        Button().Id("inc").Use(AppPresets.PrimaryButton).OnClick(() => _count++).Text("Click me"));
 }
 
 [Route("/counter-wasm")]
