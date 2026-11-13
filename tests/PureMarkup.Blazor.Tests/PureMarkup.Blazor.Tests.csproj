@@ -9,6 +9,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Verify.Xunit" />
     <ProjectReference Include="..\..\src\PureMarkup.Blazor\PureMarkup.Blazor.csproj" />
     <ProjectReference Include="..\..\src\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
@@ -16,5 +17,7 @@
     <Using Include="Xunit" />
     <Using Include="PureMarkup.Blazor" />
     <Using Include="PureMarkup.Blazor.H" Static="true" />
+    <Using Include="PureMarkup.Blazor.Styling" />
+    <Using Include="PureMarkup.Blazor.Styling.CssUnits" Static="true" />
   </ItemGroup>
 </Project>
