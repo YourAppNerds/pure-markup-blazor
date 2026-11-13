@@ -24,6 +24,7 @@ public sealed class Counter : MarkupComponent
   enums for closed value sets, and `On<Event>` methods for all 96 Blazor events. Generated from `src/PureMarkup.Blazor/Html/html.data`.
 - `Comp<T>()` for components, with typed parameter methods for framework, third-party and your own C# components (see below), plus `.Children(() => ...)`,
   `.Key`, `.Ref`, `.RenderMode`, and the untyped `.Param`, `.Fragment`, `.Callback`.
+- Presets: `Preset.Once<ButtonElement>(p => p.Class(...))`, `.Use`, `.With`, `.New`, `.ClassReplace` (see below).
 - `If`, `ForEach(items, key, body)`, `Fragment`, `Content(RenderFragment)`, `Static(static () => ...)`, `Markup`, `Doctype`.
 - `.Bind(() => model.Name)` on inputs, with no `Expression.Compile()`: a source generator intercepts the call; other shapes use a reflection walk.
   `.Bind(() => v, x => v = x)` on elements.
@@ -49,7 +50,7 @@ Comp<AuthorizeView>().Authorized(s => P().Text($"Hi {s.User.Identity!.Name}")).N
 - `ChildContent`: `.Children(() => ...)` / `.Children("text")` for `RenderFragment`; a typed `.ChildContent(ctx => ...)` for `RenderFragment<T>`.
 - `.Attr(name, value)` on components with a `CaptureUnmatchedValues` parameter (`InputText`, `NavLink`, `EditForm`, ...).
 - `ValueExpression`-style parameters take `Expression<Func<T>>`. `[CascadingParameter]` and `[SupplyParameterFrom*]` get no method.
-- Name clash rule: a parameter named like a `ComponentNode<T>` member (`Key`, `Ref`, `RenderMode`, `Param`, `Children`, `Attr`, ...)
+- Name clash rule: a parameter named like a `ComponentNode<T>` member (`Key`, `Ref`, `RenderMode`, `Param`, `Children`, `Attr`, `Use`, `Also`, ...)
   gets the suffix `Param`: a `Key` parameter is `.KeyParam(...)`, while `.Key(...)` stays Razor's `@key`.
 - Values are stored like `.Param` (value types are boxed, as Razor's `AddComponentParameter(int, string, object)` does).
 
@@ -107,6 +108,46 @@ Div().Class("raw").Class(CardCss.Card).Set(CardCss.Progress, Percent(40))   // c
 - 747 typed properties with keyword types (`Display.Flex`) from w3c/webref (`Css/css.data`, `tools/cssdata`); `.Prop(name, value)` for the rest.
 - Also `.Nest`, `.Is`, `.Before`, `.Container`, `.Supports`, `Css.Global`, `Css.FontFace`, `Css.ImportLayer`, and `.Style(s => ...)` inline.
 - Setup: import `build/PureMarkup.Blazor.targets` (as `samples/Directory.Build.targets` does) and `using PureMarkup.Blazor.Styling;`.
+
+## Presets
+```csharp
+public static class AppPresets
+{
+    public static Preset<ButtonElement> PrimaryButton => Preset.Once<ButtonElement>(p => p
+        .Class(ButtonCss.Primary).Type(ButtonType.Button));
+    public static Preset<ButtonElement> DangerButton => PrimaryButton.With(p => p.Class(ButtonCss.Danger));
+    public static Preset<ComponentNode<InputText>> Field => Preset.Once<ComponentNode<InputText>>(p => p.Class(FormCss.Field));
+}
+Button().Use(AppPresets.PrimaryButton).Type(ButtonType.Submit).Text("Save")      // Submit beats the preset's Button
+Button().Use(AppPresets.PrimaryButton).Class(PageCss.Wide).Style(s => s.MarginTop(0))
+AppPresets.DangerButton.New().Text("Delete")
+Comp<InputText>().Use(AppPresets.Field).Bind(() => Model.Name)
+```
+- A preset is recorded writes: the lambda gets a node and uses the normal generated methods (no separate preset API), so it
+  works on any element (`Preset<ButtonElement>`, or `Preset<Element>` for global attributes on every element) and any component
+  with typed methods (`Preset<ComponentNode<T>>`, MudBlazor included). The writes are recorded once, into the preset's own
+  storage, the first time it is used; `Preset.Once` returns the same preset per (base, lambda), so a property getter is fine.
+  The lambda must capture nothing.
+- Merge rules, whatever the call order (`.Type(...)` before or after `.Use` wins either way):
+
+| Write | Preset vs local |
+|---|---|
+| Attribute or component parameter | Local wins, by name. A local `null` (attribute absent) also wins. |
+| `class` | **Additive**: the preset's classes (strings and rules) come first, then the node's own. `.ClassReplace(...)` drops the preset's classes and rules; the node's other classes stay. |
+| Inline `.Style(...)` | Merged by CSS property; local wins. |
+| Events, children, fragment parameters (`ChildContent`, ...) | Local replaces the preset's. |
+| `.Use` twice | The later preset replaces the earlier. Compose with `.With`: base writes first, derived ones override. |
+
+- Components: `.Class(...)` / `.ClassReplace(...)` (string or `Rule`) are generated for components that capture unmatched
+  attributes (the `class` attribute: `InputText`, `NavLink`, ...) and, additively, for a string `Class` parameter (MudBlazor's).
+- `.Also(n => ...)` inside a preset (MAUI's meaning): runs on the node at every `.Use` / `.New`, in order, for per-render work;
+  its writes count as local writes made at the `.Use` call. `.New()` creates the element or component with the preset applied.
+- Not in a preset: `.Key` (throws when recorded) and `.Bind` (throws: a preset is shared, a binding is per instance).
+  Rules must still be declared in a `[Stylesheet]` class; reference them from the preset (`.Class(ButtonCss.Primary)`).
+- Cost per render: `.Use` takes one attribute slot (the preset's attributes share its sequence number, so slots never move)
+  and allocates nothing; merging happens when the node is written. Only a class or style set on both sides is concatenated.
+- Rules applied in a preset are kept apart from the node's own classes (for the `pm.preset` layer, next milestone); today
+  every rule is still written to `pm.local`.
 
 ## How it renders
 `Render()` builds a tree of struct handles in per-render pooled arrays, which is then written to the `RenderTreeBuilder`.
