@@ -1,0 +1,24 @@
+using Microsoft.AspNetCore.Components.Routing;
+
+namespace WebApp.Components.Layout;
+
+public sealed class MainLayout : MarkupLayout
+{
+    private static readonly (string Href, string Text)[] Links =
+    [
+        ("", "Home (SSR form)"),
+        ("counter-server", "Server"),
+        ("counter-wasm", "WebAssembly"),
+        ("counter-auto", "Auto"),
+        ("list", "List"),
+    ];
+
+    protected override Node Render() => Fragment(
+        Nav().Children(
+            ForEach(Links, l => l.Href, l =>
+                Comp<NavLink>()
+                    .Param("href", l.Href)
+                    .Param(nameof(NavLink.Match), l.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)
+                    .Children(l.Text))),
+        Main().Children(Content(Body)));
+}

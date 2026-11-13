@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- blazor.web.js ships in Microsoft.AspNetCore.App.Internal.Assets; the SDK only adds it when a .razor file exists. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <ProjectReference Include="..\WebApp.Client\WebApp.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\PureMarkup.Blazor\PureMarkup.Blazor.csproj" />
+    <ProjectReference Include="..\..\..\src\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Microsoft.AspNetCore.Components" />
+    <Using Include="Microsoft.AspNetCore.Components.Web" />
+    <Using Include="PureMarkup.Blazor" />
+    <Using Include="PureMarkup.Blazor.H" Static="true" />
+    <!-- Ambiguous with Microsoft.AspNetCore.Routing.RouteData in a Web SDK project; Razor imports hide this. -->
+    <Using Include="Microsoft.AspNetCore.Components.RouteData" Alias="RouteData" />
+  </ItemGroup>
+</Project>
