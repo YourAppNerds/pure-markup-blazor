@@ -18,6 +18,19 @@ Ratios are Markup / Razor. Spike A's numbers are in brackets.
 
 `--verify`: HTML identical to Razor for every variant. Frames: table 17,005 Razor vs 14,015; page 334 vs 533 (326 with `Static`).
 
+## CSS in C# (2026-11-13, M1 CSS core)
+`MarkupRules` is the table with `.Class(rule)` instead of class strings (`Page200` has no rules variant and reruns `Markup`).
+Rule bodies never run at render; `.Class(rule)` adds the precomputed class string.
+
+| Table 1,000 rows | M1a Markup | Markup now | MarkupRules |
+|---|--:|--:|--:|
+| Re-render (3 iterations) | 554 us | 545 us | 582 us |
+| BuildRenderTree only (15 iterations) | 296 us | 299 us | 332 us |
+| Alloc per re-render | 300,864 B | 300,864 B | 300,864 B |
+
+No regression from the merged `class`/`style` attributes. Rules allocate the same; their time difference is inside this
+machine's noise: in the same 15-iteration run, `Page200` `MarkupRules` (identical code to `Markup`) measured 12.9 vs 8.4 us.
+
 ## Notes
 - Nodes are struct handles into per-render arrays that are pooled per thread, so building allocates nothing after warm-up.
   What is left is what Razor also allocates: handler closures, boxed keys and attribute values, `ToString` of numbers.

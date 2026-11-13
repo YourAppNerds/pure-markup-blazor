@@ -9,6 +9,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="BenchmarkDotNet" />
     <ProjectReference Include="..\..\src\PureMarkup.Blazor\PureMarkup.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Baseline\Baseline.csproj" />
   </ItemGroup>
 </Project>
