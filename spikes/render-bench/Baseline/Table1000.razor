@@ -1,0 +1,21 @@
+@inherits BenchBase
+@implements IBenchTarget
+<table class="table">
+    <thead><tr><th>Id</th><th>Name</th><th>Email</th><th>Score</th></tr></thead>
+    <tbody>
+        @foreach (var r in BenchData.Rows)
+        {
+            <tr @key="r.Id" class="@(r.Id == SelectedId ? "selected" : null)" data-id="@r.Id" @onclick="() => Select(r.Id)">
+                <td>@r.Id</td>
+                <td>@r.Name</td>
+                <td><a href="@("mailto:" + r.Email)">@r.Email</a></td>
+                <td class="num">@r.Score</td>
+            </tr>
+        }
+    </tbody>
+</table>
+@code {
+    public int SelectedId { get; set; } = 10;
+    public void Select(int id) => SelectedId = id;
+    public void Toggle() => SelectedId = SelectedId == 10 ? 20 : 10;
+}
