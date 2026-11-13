@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- blazor.web.js ships in Microsoft.AspNetCore.App.Internal.Assets; the SDK only adds it when a .razor Content item exists. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ZeroRazor.Client\ZeroRazor.Client.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.14" />
+  </ItemGroup>
+</Project>
