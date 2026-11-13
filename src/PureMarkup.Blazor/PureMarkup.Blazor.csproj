@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>PureMarkup.Blazor</RootNamespace>
+    <Description>C# markup for Blazor: components, pages and layouts without .razor files.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <!-- Sequence numbers are computed at runtime by design (slot in parent). -->
+    <NoWarn>$(NoWarn);ASP0006</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Generated element/attribute/event methods are documented by the data file, not per method. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+    <AdditionalFiles Include="Html/html.data" />
+    <ProjectReference Include="..\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <InternalsVisibleTo Include="PureMarkup.Blazor.Tests" />
+  </ItemGroup>
+</Project>
