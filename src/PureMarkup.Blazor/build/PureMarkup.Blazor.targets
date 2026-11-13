@@ -1,0 +1,60 @@
+<Project>
+  <!--
+    Writes {AssemblyName}.styles.css from the project's [Stylesheet] types after compile and adds it as a fingerprinted
+    static web asset (link it with StyleLink(), which resolves the URL through the app's asset map).
+    The tool runs in a separate process: it loads the built assembly and evaluates the stylesheets. A source generator
+    cannot do this, because rule bodies are arbitrary C# expressions.
+    Set PureMarkupCss=false to turn it off; PureMarkupCssTool points at the tool (the package's tools/ folder by default).
+  -->
+  <PropertyGroup>
+    <PureMarkupCss Condition="'$(PureMarkupCss)' == ''">true</PureMarkupCss>
+    <PureMarkupCssTool Condition="'$(PureMarkupCssTool)' == ''">$(MSBuildThisFileDirectory)..\tools\PureMarkup.Blazor.CssTool.dll</PureMarkupCssTool>
+    <ResolveStaticWebAssetsInputsDependsOn Condition="'$(PureMarkupCss)' == 'true'">$(ResolveStaticWebAssetsInputsDependsOn);PureMarkupDefineCssAsset</ResolveStaticWebAssetsInputsDependsOn>
+  </PropertyGroup>
+
+  <Target Name="_PureMarkupCssConfig">
+    <PropertyGroup>
+      <_PureMarkupCssDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(IntermediateOutputPath)pmcss/'))</_PureMarkupCssDir>
+      <_PureMarkupCssFile>$(_PureMarkupCssDir)$(AssemblyName).styles.css</_PureMarkupCssFile>
+      <_PureMarkupCssProbe>$(_PureMarkupCssDir)probe.txt</_PureMarkupCssProbe>
+      <_PureMarkupDotnet>$(DOTNET_HOST_PATH)</_PureMarkupDotnet>
+      <_PureMarkupDotnet Condition="'$(_PureMarkupDotnet)' == ''">dotnet</_PureMarkupDotnet>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="_PureMarkupWriteProbe" DependsOnTargets="_PureMarkupCssConfig">
+    <MakeDir Directories="$(_PureMarkupCssDir)" />
+    <WriteLinesToFile File="$(_PureMarkupCssProbe)" Lines="@(ReferenceCopyLocalPaths->'%(FullPath)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <Target Name="PureMarkupEmitCss" DependsOnTargets="Compile;_PureMarkupCssConfig;_PureMarkupWriteProbe"
+          Inputs="@(IntermediateAssembly);$(PureMarkupCssTool);$(_PureMarkupCssProbe)" Outputs="$(_PureMarkupCssFile)">
+    <Exec Command="&quot;$(_PureMarkupDotnet)&quot; exec &quot;$(PureMarkupCssTool)&quot; &quot;@(IntermediateAssembly->'%(FullPath)')&quot; &quot;$(_PureMarkupCssFile)&quot; &quot;$(_PureMarkupCssProbe)&quot;"
+          CustomErrorRegularExpression="error PMCSS" />
+    <Touch Files="$(_PureMarkupCssFile)" />
+  </Target>
+
+  <Target Name="PureMarkupDefineCssAsset" DependsOnTargets="PureMarkupEmitCss;ResolveStaticWebAssetsConfiguration">
+    <ItemGroup>
+      <FileWrites Include="$(_PureMarkupCssFile);$(_PureMarkupCssProbe)" />
+      <_PureMarkupCssCandidate Include="$(_PureMarkupCssFile)">
+        <RelativePath Condition="'$(StaticWebAssetFingerprintingEnabled)' == 'true'">$(AssemblyName)#[.{fingerprint}]?.styles.css</RelativePath>
+        <RelativePath Condition="'$(StaticWebAssetFingerprintingEnabled)' != 'true'">$(AssemblyName).styles.css</RelativePath>
+      </_PureMarkupCssCandidate>
+    </ItemGroup>
+    <DefineStaticWebAssets CandidateAssets="@(_PureMarkupCssCandidate)" SourceType="Computed" SourceId="$(PackageId)"
+        ContentRoot="$(_PureMarkupCssDir)" BasePath="$(StaticWebAssetBasePath)" AssetKind="All" AssetMode="All" AssetRole="Primary"
+        AssetMergeSource="$(StaticWebAssetMergeTarget)" RelatedAsset="" AssetTraitName="" AssetTraitValue=""
+        CopyToOutputDirectory="Never" CopyToPublishDirectory="PreserveNewest">
+      <Output TaskParameter="Assets" ItemName="_PureMarkupCssAsset" />
+    </DefineStaticWebAssets>
+    <DefineStaticWebAssetEndpoints CandidateAssets="@(_PureMarkupCssAsset)" ExistingEndpoints="@(StaticWebAssetEndpoint)"
+        ContentTypeMappings="@(StaticWebAssetContentTypeMapping)">
+      <Output TaskParameter="Endpoints" ItemName="_PureMarkupCssEndpoint" />
+    </DefineStaticWebAssetEndpoints>
+    <ItemGroup>
+      <StaticWebAsset Include="@(_PureMarkupCssAsset)" />
+      <StaticWebAssetEndpoint Include="@(_PureMarkupCssEndpoint)" />
+    </ItemGroup>
+  </Target>
+</Project>

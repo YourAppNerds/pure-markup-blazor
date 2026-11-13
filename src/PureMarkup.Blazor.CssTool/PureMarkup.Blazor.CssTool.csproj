@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <Description>Build-time tool: loads a built assembly and writes its [Stylesheet] CSS. Run by build/PureMarkup.Blazor.targets.</Description>
+    <!-- Roll forward so an app on a newer runtime can still run the tool. -->
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Server apps load ASP.NET Core from the shared framework; the tool needs it too. Deliberately no reference to
+         PureMarkup.Blazor: the app's own copy is loaded and called by reflection. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>

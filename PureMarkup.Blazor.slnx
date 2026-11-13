@@ -9,6 +9,7 @@
     <Project Path="samples/WebApp/WebApp/WebApp.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/PureMarkup.Blazor.CssTool/PureMarkup.Blazor.CssTool.csproj" />
     <Project Path="src/PureMarkup.Blazor.Generators/PureMarkup.Blazor.Generators.csproj" />
     <Project Path="src/PureMarkup.Blazor/PureMarkup.Blazor.csproj" />
   </Folder>
