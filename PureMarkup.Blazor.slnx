@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PureMarkup.Blazor.Generators/PureMarkup.Blazor.Generators.csproj" />
+    <Project Path="src/PureMarkup.Blazor/PureMarkup.Blazor.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PureMarkup.Blazor.Tests/PureMarkup.Blazor.Tests.csproj" />
+  </Folder>
+</Solution>
