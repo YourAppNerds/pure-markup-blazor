@@ -2,7 +2,7 @@ using WebApp.Client.Theme;
 
 namespace WebApp.Components.Layout;
 
-/// <summary>Layout rules; this file lives in the server assembly, so the server writes its own WebApp.styles.css.</summary>
+/// <summary>Layout rules; this file lives in the server assembly, so the server writes its own WebApp.pm.css.</summary>
 [Stylesheet]
 public static class LayoutCss
 {

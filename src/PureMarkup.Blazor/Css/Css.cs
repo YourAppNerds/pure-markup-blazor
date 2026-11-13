@@ -4,7 +4,7 @@ namespace PureMarkup.Blazor.Styling;
 
 /// <summary>
 /// Marks a static class whose static <see cref="Rule"/>, <see cref="Var{T}"/>, <see cref="Token{T}"/>, global, font-face and
-/// layer-import members the build writes to <c>{Assembly}.styles.css</c>. Members must be pure: no services, no JS.
+/// layer-import members the build writes to <c>{Assembly}.pm.css</c>. Members must be pure: no services, no JS.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class StylesheetAttribute : Attribute;

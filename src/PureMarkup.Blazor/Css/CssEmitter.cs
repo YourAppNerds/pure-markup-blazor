@@ -6,7 +6,7 @@ namespace PureMarkup.Blazor.Styling;
 
 /// <summary>
 /// Writes the stylesheet for an assembly's <c>[Stylesheet]</c> types. The build runs it (in a separate process, after
-/// compile) to produce <c>{Assembly}.styles.css</c>; tests call it directly.
+/// compile) to produce <c>{Assembly}.pm.css</c>; tests call it directly.
 /// </summary>
 public static class CssEmitter
 {
