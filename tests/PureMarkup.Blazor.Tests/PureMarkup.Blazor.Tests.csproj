@@ -14,6 +14,8 @@
     <!-- Also referenced as an assembly: ComponentModelTests drive the shared component model directly. -->
     <ProjectReference Include="..\..\src\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" Aliases="gen" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- Build order only: StyleLinkTests read the sample's static web asset manifest. -->
+    <ProjectReference Include="..\..\samples\WebApp\WebApp\WebApp.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" Private="false" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
