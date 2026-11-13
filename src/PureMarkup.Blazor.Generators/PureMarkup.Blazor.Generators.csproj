@@ -12,5 +12,6 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
     <!-- One hash for generator and runtime. -->
     <Compile Include="../PureMarkup.Blazor/Css/CssNames.cs" Link="CssNames.cs" />
+    <InternalsVisibleTo Include="PureMarkup.Blazor.Tests" />
   </ItemGroup>
 </Project>
