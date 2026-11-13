@@ -14,6 +14,7 @@
     <Project Path="src/PureMarkup.Blazor/PureMarkup.Blazor.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/PureMarkup.Blazor.MudBlazor.Tests/PureMarkup.Blazor.MudBlazor.Tests.csproj" />
     <Project Path="tests/PureMarkup.Blazor.Tests/PureMarkup.Blazor.Tests.csproj" />
   </Folder>
 </Solution>
