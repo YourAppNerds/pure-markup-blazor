@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- The .Bind interceptor lives in this namespace; the package will ship this line in build/*.props. -->
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);PureMarkup.Blazor.Generated</InterceptorsNamespaces>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true' or $(MSBuildProjectDirectory.Contains('benchmarks')) or $(MSBuildProjectDirectory.Contains('samples'))">
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+</Project>
