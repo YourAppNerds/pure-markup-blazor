@@ -40,6 +40,20 @@ public sealed class MudPage : MarkupComponent
             .NoRecordsContent("Nothing"));
 }
 
+public static class MudPresets
+{
+    public static Preset<ComponentNode<MudButton>> Action => Preset.Once<ComponentNode<MudButton>>(p => p
+        .Variant(Variant.Filled).Color(Color.Primary).Class("pm-action").Children("Preset label"));
+}
+
+/// <summary>A preset on a third-party component: parameters merge by name, the <c>Class</c> parameter adds up.</summary>
+public sealed class MudPresetPage : MarkupComponent
+{
+    protected override Node Render() => Fragment(
+        Comp<MudButton>().Use(MudPresets.Action).Color(Color.Secondary).Class("mine").Children("Mine"),
+        MudPresets.Action.New());
+}
+
 public class MudBlazorTests(ITestOutputHelper log)
 {
     // MudBlazor registers IAsyncDisposable-only services, so the context must be disposed asynchronously.
@@ -69,6 +83,21 @@ public class MudBlazorTests(ITestOutputHelper log)
         var cells = cut.FindAll("td").Select(td => (td.GetAttribute("data-label"), td.TextContent)).ToList();
         Assert.Equal([("Name", "Apple"), ("Stock", "3"), ("Name", "Pear"), ("Stock", "5")], cells);
         Assert.Equal(["Name", "Stock"], cut.FindAll("th").Select(th => th.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task Preset_OnAThirdPartyComponent_MergesParameters()
+    {
+        await using var ctx = Context();
+        var cut = ctx.Render<MudPresetPage>();
+        var buttons = cut.FindAll("button.mud-button-filled");
+        Assert.Equal(2, buttons.Count);
+        Assert.Contains("mud-button-filled-secondary", buttons[0].ClassName); // local Color beats the preset's
+        Assert.Contains("pm-action mine", buttons[0].ClassName);              // classes add up
+        Assert.Equal("Mine", buttons[0].TextContent.Trim());                  // local ChildContent replaces the preset's
+        Assert.Contains("mud-button-filled-primary", buttons[1].ClassName);
+        Assert.Contains("pm-action", buttons[1].ClassName);
+        Assert.Equal("Preset label", buttons[1].TextContent.Trim());
     }
 
     [Fact]
