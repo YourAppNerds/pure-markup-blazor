@@ -168,7 +168,15 @@ public sealed class HtmlGenerator : IIncrementalGenerator
         sb.Append("    public static ").Append(self).Append(' ').Append(a.Cs).Append(isGeneric ? "<T>" : "").Append("(this ").Append(self).Append(" el, ")
           .Append(param).Append(')').Append(constraint.Length > 0 ? " " + constraint : "").AppendLine();
         sb.AppendLine("    {");
-        sb.Append("        RenderArena.Current.AddAttr(el.Node, ").Append(kind).Append(", \"").Append(a.Html).Append("\", ").Append(value).AppendLine(");");
+        if (a.Kind is null && a.Html is "class" or "style")
+        {
+            // Additive: every .Class(...) adds a class (strings and rules alike); every .Style(...) adds declarations.
+            sb.Append("        RenderArena.Current.").Append(a.Html == "class" ? "AddClass" : "AddStyle").AppendLine("(el.Node, value);");
+        }
+        else
+        {
+            sb.Append("        RenderArena.Current.AddAttr(el.Node, ").Append(kind).Append(", \"").Append(a.Html).Append("\", ").Append(value).AppendLine(");");
+        }
         sb.AppendLine("        return el;").AppendLine("    }");
         return 1;
     }

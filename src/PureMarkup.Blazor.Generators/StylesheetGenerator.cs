@@ -1,0 +1,136 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using PureMarkup.Blazor.Styling;
+
+namespace PureMarkup.Blazor.Generators;
+
+/// <summary>
+/// Names <c>[Stylesheet]</c> members at compile time. Each <c>Css.Rule(...)</c> or <c>Css.Var&lt;T&gt;(...)</c> that initializes a
+/// static member of a <c>[Stylesheet]</c> class is intercepted with a call that passes the constant name
+/// <c>{Type}_{Member}-{hash}</c> (<c>pm-{hash}</c> in Release), so static SSR, prerender and WebAssembly all write the same
+/// class with no lookup. Also marks the assembly with <c>[HasStylesheets]</c> for <c>StyleLink()</c>.
+/// </summary>
+[Generator]
+public sealed class StylesheetGenerator : IIncrementalGenerator
+{
+    sealed record Site(string Attribute, string Kind, string Name, bool HasInitial, string? Error, Location? Location);
+
+    static readonly DiagnosticDescriptor Unnamed = new(
+        "PMCSS001", "Rule or Var outside a [Stylesheet] member",
+        "{0} is not the initializer of a static member of a [Stylesheet] class, so it gets no name; using it throws",
+        "PureMarkup.Styling", DiagnosticSeverity.Warning, isEnabledByDefault: true);
+
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var sites = context.SyntaxProvider.CreateSyntaxProvider(
+                static (n, _) => n is InvocationExpressionSyntax
+                {
+                    Expression: MemberAccessExpressionSyntax
+                    {
+                        Expression: IdentifierNameSyntax { Identifier.ValueText: "Css" } or QualifiedNameSyntax { Right.Identifier.ValueText: "Css" } or AliasQualifiedNameSyntax,
+                        Name.Identifier.ValueText: "Rule" or "Var",
+                    },
+                },
+                static (c, ct) => Analyze(c, ct))
+            .Where(static s => s is not null)
+            .Select(static (s, _) => s!);
+
+        var hasStylesheets = context.SyntaxProvider.ForAttributeWithMetadataName(
+                "PureMarkup.Blazor.Styling.StylesheetAttribute", static (n, _) => n is ClassDeclarationSyntax, static (_, _) => true)
+            .Collect()
+            .Select(static (a, _) => a.Length > 0);
+
+        context.RegisterSourceOutput(sites.Collect().Combine(hasStylesheets), static (spc, input) => Emit(spc, input.Left, input.Right));
+    }
+
+    static Site? Analyze(GeneratorSyntaxContext c, CancellationToken ct)
+    {
+        var inv = (InvocationExpressionSyntax)c.Node;
+        var model = c.SemanticModel;
+        if (model.GetSymbolInfo(inv, ct).Symbol is not IMethodSymbol m) return null;
+        if (m.ContainingType.ToDisplayString() != "PureMarkup.Blazor.Styling.Css" || m.Name is not ("Rule" or "Var")) return null;
+        var hasInitial = m.Parameters.Length == 1;
+
+        // The call must be the whole initializer of a static property or field of a [Stylesheet] class.
+        ISymbol? member = null;
+        var parent = inv.Parent is EqualsValueClauseSyntax eq ? eq.Parent : null;
+        if (parent is PropertyDeclarationSyntax pd) member = model.GetDeclaredSymbol(pd, ct);
+        else if (parent is VariableDeclaratorSyntax vd) member = model.GetDeclaredSymbol(vd, ct);
+        var type = member?.ContainingType;
+        var ok = member is { IsStatic: true } && type is not null
+            && type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == "PureMarkup.Blazor.Styling.StylesheetAttribute");
+        if (!ok) return new Site("", m.Name, "", hasInitial, $"Css.{m.Name}(...)", inv.GetLocation());
+
+        var location = model.GetInterceptableLocation(inv, ct);
+        if (location is null) return null;
+        var typeName = TypeName(type!);
+        var fullName = type!.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", "");
+        var assembly = model.Compilation.AssemblyName ?? "";
+        // Readable form is resolved at emit time (Debug vs Release); carry both parts.
+        var name = typeName + "\n" + member!.Name + "\n" + CssNames.Hash(assembly, fullName, member.Name);
+        return new Site(location.GetInterceptsLocationAttributeSyntax(), m.Name, name, hasInitial, null, null);
+    }
+
+    static string TypeName(INamedTypeSymbol t) => t.ContainingType is null ? t.Name : TypeName(t.ContainingType) + "_" + t.Name;
+
+    static void Emit(SourceProductionContext spc, ImmutableArray<Site> sites, bool hasStylesheets)
+    {
+        foreach (var s in sites.Where(s => s.Error is not null))
+            spc.ReportDiagnostic(Diagnostic.Create(Unnamed, s.Location, s.Error));
+        var named = sites.Where(s => s.Error is null).ToList();
+        if (!hasStylesheets && named.Count == 0) return;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/> by PureMarkup.Blazor.Generators.StylesheetGenerator");
+        sb.AppendLine("#nullable disable");
+        if (hasStylesheets) sb.AppendLine("[assembly: global::PureMarkup.Blazor.Styling.HasStylesheets]");
+        if (named.Count > 0)
+        {
+            sb.AppendLine("namespace System.Runtime.CompilerServices");
+            sb.AppendLine("{");
+            sb.AppendLine("    [global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]");
+            sb.AppendLine("    file sealed class InterceptsLocationAttribute : global::System.Attribute");
+            sb.AppendLine("    {");
+            sb.AppendLine("        public InterceptsLocationAttribute(int version, string data) { }");
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.AppendLine("namespace PureMarkup.Blazor.Generated");
+            sb.AppendLine("{");
+            sb.AppendLine("    file static class StylesheetInterceptors");
+            sb.AppendLine("    {");
+            sb.AppendLine("#if DEBUG");
+            Body(sb, named, readable: true);
+            sb.AppendLine("#else");
+            Body(sb, named, readable: false);
+            sb.AppendLine("#endif");
+            sb.AppendLine("    }");
+            sb.AppendLine("}");
+        }
+        spc.AddSource("StylesheetInterceptors.g.cs", sb.ToString());
+    }
+
+    static void Body(StringBuilder sb, List<Site> sites, bool readable)
+    {
+        const string Ns = "global::PureMarkup.Blazor.Styling";
+        for (var i = 0; i < sites.Count; i++)
+        {
+            var s = sites[i];
+            var p = s.Name.Split('\n');
+            var cls = (readable ? p[0] + "_" + p[1] + "-" : "pm-") + p[2];
+            sb.AppendLine($"        {s.Attribute}");
+            if (s.Kind == "Rule")
+                sb.AppendLine($"        public static {Ns}.Rule Rule_{i}(global::System.Action<{Ns}.RuleBuilder> build) => {Ns}.Css.NamedRule(\"{cls}\", build);");
+            else if (s.HasInitial)
+                sb.AppendLine($"        public static {Ns}.Var<T> Var_{i}<T>(T initial) where T : {Ns}.ICssValue<T> => {Ns}.Css.NamedVar<T>(\"--{cls}\", initial);");
+            else
+                sb.AppendLine($"        public static {Ns}.Var<T> Var_{i}<T>() where T : {Ns}.ICssValue<T> => {Ns}.Css.NamedVar<T>(\"--{cls}\");");
+        }
+    }
+}

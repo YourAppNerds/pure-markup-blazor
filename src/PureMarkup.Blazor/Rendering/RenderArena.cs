@@ -53,6 +53,8 @@ internal struct NodeFrame
     public object? Key;
     public int FirstAttr;     // 1-based into Attrs; 0 = none
     public int LastAttr;
+    public int ClassAttr;     // index of the merged class attribute, 0 = none
+    public int StyleAttr;     // index of the merged style attribute, 0 = none
     public int AttrSeq;       // next attribute sequence number (counts skipped null attributes too)
     public int FirstKid;
     public int KidCount;
@@ -171,6 +173,35 @@ internal sealed class RenderArena
         ref var f = ref Frame(n);
         var seq = f.AttrSeq++;
         if (value is null && kind is AttrKind.String or AttrKind.Object) return; // absent, as Razor omits null attributes
+        Append(ref f, seq, kind, name, value, aux);
+    }
+
+    /// <summary>Adds to the element's one <c>class</c> attribute (space-separated), so strings and rules are additive.</summary>
+    internal void AddClass(Node n, string? value) => AddMerged(n, "class", value, ' ', isClass: true);
+
+    /// <summary>Adds to the element's one <c>style</c> attribute; later declarations win, as in CSS.</summary>
+    internal void AddStyle(Node n, string? value) => AddMerged(n, "style", value, ';', isClass: false);
+
+    private void AddMerged(Node n, string name, string? value, char separator, bool isClass)
+    {
+        ref var f = ref Frame(n);
+        var seq = f.AttrSeq++; // still one sequence number per call, so later attributes keep theirs
+        if (string.IsNullOrEmpty(value)) return;
+        var existing = isClass ? f.ClassAttr : f.StyleAttr;
+        if (existing != 0)
+        {
+            ref var at = ref Attrs[existing];
+            var old = (string)at.Value!;
+            at.Value = separator == ';' && old.EndsWith(';') ? old + " " + value : old + (separator == ';' ? "; " : " ") + value;
+            return;
+        }
+        var i = Append(ref f, seq, AttrKind.String, name, value, null);
+        if (isClass) f.ClassAttr = i;
+        else f.StyleAttr = i;
+    }
+
+    private int Append(ref NodeFrame f, int seq, AttrKind kind, string name, object? value, object? aux)
+    {
         if (AttrCount == Attrs.Length) Array.Resize(ref Attrs, Attrs.Length * 2);
         var i = AttrCount++;
         ref var a = ref Attrs[i];
@@ -184,6 +215,7 @@ internal sealed class RenderArena
         else Attrs[f.LastAttr].Next = i;
         f.LastAttr = i;
         if (kind >= AttrKind.ElementRef) f.HasTrailing = true;
+        return i;
     }
 
     /// <summary>Skips one attribute sequence number (an attribute that is absent this render).</summary>

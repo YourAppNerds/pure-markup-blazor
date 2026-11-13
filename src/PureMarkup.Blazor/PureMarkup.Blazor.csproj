@@ -13,6 +13,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
     <AdditionalFiles Include="Html/html.data" />
+    <AdditionalFiles Include="Css/css.data" />
     <ProjectReference Include="..\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <InternalsVisibleTo Include="PureMarkup.Blazor.Tests" />
   </ItemGroup>

@@ -6,9 +6,11 @@
     <IsRoslynComponent>true</IsRoslynComponent>
     <IsPackable>false</IsPackable>
     <!-- GetInterceptableLocation is marked experimental. -->
-    <NoWarn>$(NoWarn);RSEXPERIMENTAL002</NoWarn>
+    <NoWarn>$(NoWarn);RSEXPERIMENTAL002;RS2008</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <!-- One hash for generator and runtime. -->
+    <Compile Include="../PureMarkup.Blazor/Css/CssNames.cs" Link="CssNames.cs" />
   </ItemGroup>
 </Project>
