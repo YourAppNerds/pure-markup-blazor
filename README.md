@@ -74,8 +74,8 @@ Comp<MudTextField<string>>().Label("Name").Value(Name).ValueChanged(v => Name = 
   `.Fragment`, `.Callback` for them.
 - Trimming: `Comp<Router>()` warns IL2111 (`Router.NotFoundPage`) in a project with the trim analyzer on, exactly as `<Router>` in a
   `.razor` file does; it comes from the framework's annotations. Generated methods add no warnings.
-- A package with scoped CSS (QuickGrid) makes the SDK write its own `{Assembly}.styles.css` bundle, which clashes with the generated
-  stylesheet; `samples/WebApp` sets `DisableScopedCssBundling`.
+- Scoped CSS from packages (QuickGrid) works: the SDK's `{Assembly}.styles.css` bundle and the generated `{Assembly}.pm.css` have
+  different names, and `StyleLink()` links both (see Styling).
 
 ## Styling: CSS in C#
 ```csharp
@@ -92,8 +92,16 @@ Div().Class("raw").Class(CardCss.Card).Set(CardCss.Progress, Percent(40))   // c
 ```
 - Class names are compile-time constants, `{Type}_{Member}-{hash}` (`pm-{hash}` in Release): the generator intercepts `Css.Rule`/`Css.Var`.
   Static SSR, prerender and WebAssembly write the same class. Rule bodies run only at build time; rendering adds a class string.
-- After compile, `PureMarkup.Blazor.CssTool` loads the built assembly in a separate process and writes `{Assembly}.styles.css`,
+- After compile, `PureMarkup.Blazor.CssTool` loads the built assembly in a separate process and writes `{Assembly}.pm.css`,
   added as a fingerprinted static web asset (server and `.Client` projects). `StyleLink()` in `Head()` links each, dependencies first.
+  The name is not `{Assembly}.styles.css` because the SDK writes its scoped CSS bundle (`.razor.css` files, packages such as
+  QuickGrid) under that name.
+- When the app has that SDK bundle, `StyleLink()` links it first, as `App.razor` in a Razor template does (needs the asset map from
+  `MapStaticAssets`). `StyleLink(scopedCss: false)` leaves it out, for an app that links or imports it itself.
+- Scoped CSS is unlayered, and unlayered CSS beats every layer, so it wins over `pm.*` rules on the same element and property.
+  Its selectors carry `[b-xxxx]` scope attributes and hit only that component's own elements, so a clash needs a rule aimed at those
+  elements. To let `pm.*` rules win there, put the bundle in the `vendor` layer: `Css.ImportLayer("vendor", "WebApp.styles.css")`
+  plus `StyleLink(scopedCss: false)` (not fingerprinted then; **unverified** in the sample).
 - File order: `@layer reset, vendor, pm.base, pm.preset, pm.local, pm.preset-state, pm.local-state, utilities;`. Rules go in
   `pm.local`, their state blocks (`.Hover`, `.Active`, `.FocusVisible`, `.Disabled`, `.Checked`, `.When`) in `pm.local-state`.
 - 747 typed properties with keyword types (`Display.Flex`) from w3c/webref (`Css/css.data`, `tools/cssdata`); `.Prop(name, value)` for the rest.
