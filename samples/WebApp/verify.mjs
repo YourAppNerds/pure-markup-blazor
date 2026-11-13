@@ -61,6 +61,11 @@ check((await page.$$eval('table.planets tbody tr td:last-child', tds => tds.map(
 await page.click('table.planets th:nth-child(2) button.col-title');
 await page.waitForFunction(() => document.querySelector('table.planets tbody tr td:first-child')?.textContent.trim() === 'Earth');
 check((await names()) === 'Earth,Mars,Jupiter', 'sorting by Moons re-renders the grid');
+// QuickGrid's scoped CSS (in the SDK bundle WebApp.styles.css, beside the generated WebApp.pm.css) styles the grid ...
+const colTitle = await page.$eval('table.planets th button.col-title', e => { const s = getComputedStyle(e); return `${s.display} ${s.borderTopStyle}`; });
+check(colTitle === 'flex none', `QuickGrid scoped CSS applies to the sort button (${colTitle})`);
+// ... and a generated rule still styles the same page.
+check((await page.$eval('nav', e => getComputedStyle(e).display)) === 'flex', 'generated rule (LayoutCss.Nav) applies on /grid');
 
 // CSS in C#: build-generated, fingerprinted stylesheets linked by StyleLink(); no .css files in the app.
 const prerendered = await (await page.request.get(base + '/counter-wasm')).text();
@@ -68,8 +73,10 @@ const prerenderClass = /<button id="inc" class="([^"]+)"/.exec(prerendered)?.[1]
 check(/CounterCss_Button-[a-z0-9]{6}/.test(prerenderClass ?? ''), `prerendered button has a generated class (${prerenderClass})`);
 await page.goto(base + '/counter-wasm');
 await page.waitForFunction(() => document.querySelector('#renderer')?.textContent.includes('Renderer: WebAssembly; interactive: True'), null, { timeout: 30000 });
-const hrefs = await page.$$eval('link[rel=stylesheet]', ls => ls.map(l => l.getAttribute('href')));
-check(hrefs.length === 2 && hrefs.every(h => /^WebApp(\.Client)?\.[a-z0-9]+\.styles\.css$/.test(h)), `StyleLink writes fingerprinted links: ${hrefs.join(', ')}`);
+const links = await page.$$eval('link[rel=stylesheet]', ls => ls.map(l => l.getAttribute('href')));
+check(links.length === 3 && /^WebApp\.[a-z0-9]+\.styles\.css$/.test(links[0]), `StyleLink links the SDK scoped CSS bundle first (${links[0]})`);
+const hrefs = links.slice(1);
+check(hrefs.every(h => /^WebApp(\.Client)?\.[a-z0-9]+\.pm\.css$/.test(h)), `StyleLink writes fingerprinted links: ${hrefs.join(', ')}`);
 for (const h of hrefs) {
   const r = await page.request.get(base + '/' + h);
   const body = await r.text();
