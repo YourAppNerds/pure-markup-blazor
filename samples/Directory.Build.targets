@@ -1,0 +1,11 @@
+<Project>
+  <!-- In the repo, samples use the build targets and tool from src/ (a package would import build/ and ship tools/). -->
+  <PropertyGroup>
+    <PureMarkupCssTool>$(MSBuildThisFileDirectory)../src/PureMarkup.Blazor.CssTool/bin/$(Configuration)/net10.0/PureMarkup.Blazor.CssTool.dll</PureMarkupCssTool>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../src/PureMarkup.Blazor.CssTool/PureMarkup.Blazor.CssTool.csproj"
+                      ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)../src/PureMarkup.Blazor/build/PureMarkup.Blazor.targets" />
+</Project>

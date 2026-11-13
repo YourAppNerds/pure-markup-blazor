@@ -11,6 +11,7 @@ public sealed class App : MarkupComponent
                 Meta().Name("viewport").Content("width=device-width, initial-scale=1.0"),
                 Base().Href("/"),
                 Comp<ResourcePreloader>(),
+                StyleLink(),
                 Comp<ImportMap>(),
                 Comp<HeadOutlet>()),
             Body().Children(

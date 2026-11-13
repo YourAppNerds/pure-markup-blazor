@@ -14,5 +14,7 @@
     <Using Include="Microsoft.AspNetCore.Components.Web" />
     <Using Include="PureMarkup.Blazor" />
     <Using Include="PureMarkup.Blazor.H" Static="true" />
+    <Using Include="PureMarkup.Blazor.Styling" />
+    <Using Include="PureMarkup.Blazor.Styling.CssUnits" Static="true" />
   </ItemGroup>
 </Project>

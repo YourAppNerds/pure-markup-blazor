@@ -52,6 +52,33 @@ await page.waitForFunction(() => document.querySelector('#summary').textContent 
 check(true, 'editing a row input updates the model and re-renders');
 check((await page.inputValue('#name-50')) === 'Item 50', 'other rows keep their values');
 
+// CSS in C#: build-generated, fingerprinted stylesheets linked by StyleLink(); no .css files in the app.
+const prerendered = await (await page.request.get(base + '/counter-wasm')).text();
+const prerenderClass = /<button id="inc" class="([^"]+)"/.exec(prerendered)?.[1];
+check(/CounterCss_Button-[a-z0-9]{6}/.test(prerenderClass ?? ''), `prerendered button has a generated class (${prerenderClass})`);
+await page.goto(base + '/counter-wasm');
+await page.waitForFunction(() => document.querySelector('#renderer')?.textContent.includes('Renderer: WebAssembly; interactive: True'), null, { timeout: 30000 });
+const hrefs = await page.$$eval('link[rel=stylesheet]', ls => ls.map(l => l.getAttribute('href')));
+check(hrefs.length === 2 && hrefs.every(h => /^WebApp(\.Client)?\.[a-z0-9]+\.styles\.css$/.test(h)), `StyleLink writes fingerprinted links: ${hrefs.join(', ')}`);
+for (const h of hrefs) {
+  const r = await page.request.get(base + '/' + h);
+  const body = await r.text();
+  check(r.status() === 200 && body.includes('@layer reset, vendor, pm.base'), `${h} is 200 and non-empty (${body.length} chars)`);
+}
+check((await page.getAttribute('#inc', 'class')) === prerenderClass, 'button class identical after WebAssembly took over');
+const bg = () => page.$eval('#inc', e => getComputedStyle(e).backgroundColor);
+const before = await bg();
+await page.hover('#inc');
+// Waits out the 150ms transition.
+await page.waitForFunction(() => getComputedStyle(document.querySelector('#inc')).backgroundColor === 'rgb(29, 78, 216)', null, { timeout: 5000 });
+const after = await bg();
+check(before === 'rgb(37, 99, 235)' && after === 'rgb(29, 78, 216)', `hover rule from pm.local-state applies (${before} -> ${after})`);
+await page.mouse.move(0, 0);
+await page.click('#inc');
+await page.waitForFunction(() => document.querySelector('#bar').getAttribute('style')?.includes(': 10%'));
+check((await page.$eval('#bar', e => getComputedStyle(e).width)) !== '0px', '.Set(var, value) drives the bar width');
+check((await page.$eval('nav', e => getComputedStyle(e).display)) === 'flex', 'server-assembly rule (LayoutCss.Nav) applies');
+
 check([...loaded].some(p => /^\/_framework\/blazor\.web(\.[a-z0-9]+)?\.js$/.test(p)), 'blazor.web.js loaded');
 check([...loaded].some(p => /^\/_framework\/dotnet(\.[a-z0-9]+)?\.js$/.test(p)), 'WASM runtime dotnet.js loaded');
 await browser.close();

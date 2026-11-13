@@ -1,3 +1,5 @@
+using WebApp.Client.Theme;
+
 namespace WebApp.Client.Pages;
 
 /// <summary>Shared counter body. [Route] is not inherited, so each page declares its own.</summary>
@@ -10,8 +12,9 @@ public abstract class CounterBase : MarkupComponent
         Comp<PageTitle>().Children(Title),
         H1().Text(Title),
         P().Id("renderer").Text($"Renderer: {RendererInfo.Name}; interactive: {RendererInfo.IsInteractive}"),
-        P().Id("count").Text($"Current count: {_count}"),
-        Button().Id("inc").Class("btn").OnClick(() => _count++).Text("Click me"));
+        Div().Id("bar").Class(CounterCss.Bar).Set(CounterCss.Fill, Percent(Math.Min(_count * 10, 100))),
+        P().Id("count").Class(CounterCss.Count).Text($"Current count: {_count}"),
+        Button().Id("inc").Class("btn").Class(CounterCss.Button).OnClick(() => _count++).Text("Click me"));
 }
 
 [Route("/counter-wasm")]

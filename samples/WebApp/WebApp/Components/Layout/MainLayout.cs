@@ -14,11 +14,11 @@ public sealed class MainLayout : MarkupLayout
     ];
 
     protected override Node Render() => Fragment(
-        Nav().Children(
+        Nav().Class(LayoutCss.Nav).Children(
             ForEach(Links, l => l.Href, l =>
                 Comp<NavLink>()
                     .Param("href", l.Href)
                     .Param(nameof(NavLink.Match), l.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)
                     .Children(l.Text))),
-        Main().Children(Content(Body)));
+        Main().Class(LayoutCss.Main).Children(Content(Body)));
 }
