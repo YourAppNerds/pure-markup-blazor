@@ -22,7 +22,7 @@ public sealed class Counter : MarkupComponent
 ## What is in the box
 - `Div()`, `Input()`, ... for 112 HTML elements, typed attribute methods (`A().Href(...)` compiles, `Div().Href(...)` does not),
   enums for closed value sets, and `On<Event>` methods for all 96 Blazor events. Generated from `src/PureMarkup.Blazor/Html/html.data`.
-- `Comp<T>()` for components, with typed parameter methods for every framework component (see below), plus `.Children(() => ...)`,
+- `Comp<T>()` for components, with typed parameter methods for framework, third-party and your own C# components (see below), plus `.Children(() => ...)`,
   `.Key`, `.Ref`, `.RenderMode`, and the untyped `.Param`, `.Fragment`, `.Callback`.
 - `If`, `ForEach(items, key, body)`, `Fragment`, `Content(RenderFragment)`, `Static(static () => ...)`, `Markup`, `Doctype`.
 - `.Bind(() => model.Name)` on inputs, with no `Expression.Compile()`: a source generator intercepts the call; other shapes use a reflection walk.
@@ -40,10 +40,10 @@ Comp<AuthorizeView>().Authorized(s => P().Text($"Hi {s.User.Identity!.Name}")).N
 - Components cannot be `new`ed, so `Comp<T>()` describes one and parameters are extension methods on it, one per `[Parameter]`
   (inherited ones included). On a generic component the type argument comes from the receiver: `Comp<InputNumber<int>>().Value(5)`.
 - Generated when the library is built, from the framework assemblies it references: `Microsoft.AspNetCore.Components`
-  (`.Routing`, `.Sections`, ...), `.Web`, `.Forms`, `.Authorization`. 34 components, 183 methods on net10.0.
+  (`.Routing`, `.Sections`, ...), `.Web`, `.Forms`, `.Authorization`. 34 components, 187 methods on net10.0.
 - `EventCallback<T>`: `Action`, `Action<T>`, `Func<Task>`, `Func<T, Task>` (the component rendering the markup is the receiver,
   so it re-renders, as with `On<Event>`), or an `EventCallback<T>` to forward. `EventCallback`: `Action`, `Func<Task>`, `EventCallback`.
-- `RenderFragment`: `Func<Node>`; `RenderFragment<T>`: `Func<T, Node>`. Both are built when the child renders the fragment.
+- `RenderFragment`: `Func<Node>` or `string` (text); `RenderFragment<T>`: `Func<T, Node>`. Built when the child renders the fragment.
   There is no `Node` overload: a node belongs to the render that built it, and the child renders the fragment later.
   To pass an existing `RenderFragment`, use `.Param("Name", fragment)`.
 - `ChildContent`: `.Children(() => ...)` / `.Children("text")` for `RenderFragment`; a typed `.ChildContent(ctx => ...)` for `RenderFragment<T>`.
@@ -52,7 +52,30 @@ Comp<AuthorizeView>().Authorized(s => P().Text($"Hi {s.User.Identity!.Name}")).N
 - Name clash rule: a parameter named like a `ComponentNode<T>` member (`Key`, `Ref`, `RenderMode`, `Param`, `Children`, `Attr`, ...)
   gets the suffix `Param`: a `Key` parameter is `.KeyParam(...)`, while `.Key(...)` stays Razor's `@key`.
 - Values are stored like `.Param` (value types are boxed, as Razor's `AddComponentParameter(int, string, object)` does).
-- Your own and third-party components: `.Param("Name", value)`, `.Fragment`, `.Callback` until consumer-side generation lands.
+
+### Third-party and your own components
+```csharp
+[assembly: GenerateMarkup(typeof(MudButton))]                            // one component (typeof(MudSelect<>) for generic ones)
+[assembly: GenerateMarkup(typeof(MudButton), WholeAssembly = true)]      // every public component in MudBlazor
+Comp<MudTextField<string>>().Label("Name").Value(Name).ValueChanged(v => Name = v)
+```
+- The generator runs in the project that carries the attribute (same shape as PureMarkup.Maui's `GenerateMarkup`: `Type`,
+  `WholeAssembly`, `Namespace`). MudBlazor 9.12 whole-assembly: 166 components, 5021 methods, no warnings
+  (6 components have no settable parameters: `MudSpacer`, `MudPopoverProvider`, ...).
+- C# components declared in the project (`MarkupComponent` or any `ComponentBase` subclass, public or internal) get methods
+  automatically, with no attribute: like Razor, where a component in the project is just usable. Components with no parameters get nothing.
+- Derived components: `ComponentNode<T>` is invariant, so `class MyInput : InputText` gets its own flattened methods (inherited parameters
+  included): automatically when it is in the project, through the attribute when it comes from a package.
+- Output: `internal` classes `{Namespace}_{Name}Parameters` in namespace `PureMarkup.Blazor` (or `Namespace = "..."`), so the
+  usual `using PureMarkup.Blazor;` is all you need, and two assemblies generating for the same type never clash.
+- Types the library already covers are skipped. Diagnostics: `PMCOMP001` not a concrete component, `PMCOMP002` not accessible,
+  `PMCOMP003` already covered (remove the attribute).
+- `.razor` components of the same project come from another source generator, which this one cannot see: use `.Param("Name", value)`,
+  `.Fragment`, `.Callback` for them.
+- Trimming: `Comp<Router>()` warns IL2111 (`Router.NotFoundPage`) in a project with the trim analyzer on, exactly as `<Router>` in a
+  `.razor` file does; it comes from the framework's annotations. Generated methods add no warnings.
+- A package with scoped CSS (QuickGrid) makes the SDK write its own `{Assembly}.styles.css` bundle, which clashes with the generated
+  stylesheet; `samples/WebApp` sets `DisableScopedCssBundling`.
 
 ## Styling: CSS in C#
 ```csharp
