@@ -59,12 +59,40 @@ internal static class ComponentModel
         return set;
     }
 
-    /// <summary>True for a public, concrete, non-obsolete class that implements IComponent.</summary>
-    public static bool IsComponent(INamedTypeSymbol t, INamedTypeSymbol iComponent) =>
-        t.TypeKind == TypeKind.Class && !t.IsAbstract && !t.IsStatic && IsPublic(t) && !IsObsolete(t)
-        && t.AllInterfaces.Contains(iComponent, SymbolEqualityComparer.Default);
+    /// <summary>True for a concrete, non-obsolete class that implements IComponent and is public (or, with
+    /// <paramref name="within"/>, accessible from that assembly: consumer-time output is internal).</summary>
+    public static bool IsComponent(INamedTypeSymbol t, INamedTypeSymbol iComponent, Compilation? compilation = null, IAssemblySymbol? within = null) =>
+        IsConcreteComponent(t, iComponent) && !IsObsolete(t) && IsAccessible(t, compilation, within);
 
-    public static ComponentInfo? Read(INamedTypeSymbol type, Compilation compilation, HashSet<string> reserved, CancellationToken ct)
+    /// <summary>A non-abstract, non-static class implementing IComponent (accessibility not checked).</summary>
+    public static bool IsConcreteComponent(INamedTypeSymbol t, INamedTypeSymbol iComponent) =>
+        t.TypeKind == TypeKind.Class && !t.IsAbstract && !t.IsStatic && t.AllInterfaces.Contains(iComponent, SymbolEqualityComparer.Default);
+
+    /// <summary>Components for which the referenced PureMarkup.Blazor assembly already has typed parameter methods: the receivers
+    /// (<c>ComponentNode&lt;X&gt;</c>) of public extension methods in its <c>*Parameters</c> classes. Empty when compiling the library itself.</summary>
+    public static HashSet<INamedTypeSymbol> CoveredByLibrary(Compilation compilation)
+    {
+        var set = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        var node = compilation.GetTypeByMetadataName(ComponentNodeMetadataName);
+        if (node is null || SymbolEqualityComparer.Default.Equals(node.ContainingAssembly, compilation.Assembly)) return set;
+        foreach (var cls in node.ContainingNamespace.GetTypeMembers())
+        {
+            if (!cls.IsStatic || cls.DeclaredAccessibility != Accessibility.Public || !cls.Name.EndsWith("Parameters", StringComparison.Ordinal)) continue;
+            foreach (var m in cls.GetMembers())
+                if (m is IMethodSymbol { IsExtensionMethod: true, Parameters.Length: > 0 } ms
+                    && ms.Parameters[0].Type is INamedTypeSymbol recv && SymbolEqualityComparer.Default.Equals(recv.OriginalDefinition, node)
+                    && recv.TypeArguments[0] is INamedTypeSymbol comp)
+                {
+                    set.Add(comp.OriginalDefinition);
+                    break;
+                }
+        }
+        return set;
+    }
+
+    /// <param name="within">Null for public output (pack time); the consumer's assembly for internal output, so parameter types
+    /// only need to be accessible from it.</param>
+    public static ComponentInfo? Read(INamedTypeSymbol type, Compilation compilation, HashSet<string> reserved, CancellationToken ct, IAssemblySymbol? within = null)
     {
         var parameterAttr = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Components.ParameterAttribute");
         var cascadingBase = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Components.CascadingParameterAttributeBase");
@@ -95,7 +123,7 @@ internal static class ComponentModel
                     else if (cascadingBase is not null && InheritsFrom(a.AttributeClass, cascadingBase)) cascading = true;
                 }
                 if (param is null || cascading || !seen.Add(p.Name)) continue;
-                if (!IsAccessible(p.Type)) continue;
+                if (!IsAccessible(p.Type, compilation, within)) continue;
 
                 if (param.NamedArguments.Any(kv => kv.Key == "CaptureUnmatchedValues" && kv.Value.Value is true)) captures = true;
 
@@ -150,12 +178,14 @@ internal static class ComponentModel
         return true;
     }
 
-    /// <summary>A parameter whose type mentions a non-public type (or a pointer) cannot appear in a public method.</summary>
-    private static bool IsAccessible(ITypeSymbol t) => t switch
+    /// <summary>A parameter whose type mentions a non-public type (or a pointer) cannot appear in a public method; for internal
+    /// output (<paramref name="within"/> set), the type must be accessible from that assembly.</summary>
+    private static bool IsAccessible(ITypeSymbol t, Compilation? compilation, IAssemblySymbol? within) => t switch
     {
         ITypeParameterSymbol => true,
-        IArrayTypeSymbol a => IsAccessible(a.ElementType),
-        INamedTypeSymbol n => IsPublic(n) && n.TypeArguments.All(IsAccessible),
+        IArrayTypeSymbol a => IsAccessible(a.ElementType, compilation, within),
+        INamedTypeSymbol n => (within is null || compilation is null ? IsPublic(n) : compilation.IsSymbolAccessibleWithin(n.OriginalDefinition, within))
+                              && n.TypeArguments.All(x => IsAccessible(x, compilation, within)),
         _ => false,
     };
 
