@@ -8,8 +8,9 @@ namespace PureMarkup.Blazor;
 
 /// <summary>
 /// A component in the tree. Components cannot be <c>new</c>ed (the renderer creates them), so this describes one:
-/// its parameters, key, content. Typed parameter methods per component are a later generator step; until then use
-/// <see cref="Param"/>, <see cref="Callback(string, Action)"/> and <see cref="Children(Func{Node})"/>.
+/// its parameters, key, content. Framework components get generated typed parameter methods
+/// (<c>Comp&lt;EditForm&gt;().Model(m).OnValidSubmit(Save)</c>); they call <see cref="Param"/>, <see cref="Callback(string, Action)"/>
+/// and <see cref="Fragment(string, Func{Node})"/>, which stay available for components without generated methods.
 /// </summary>
 public readonly struct ComponentNode<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T> where T : IComponent
 {
