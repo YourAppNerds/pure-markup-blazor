@@ -57,7 +57,7 @@ public class ComponentModelTests
     {
         var c = Compile(Source);
         var (_, generated, methods) = Assert.Single(ComponentEmitter.Emit([Read(c)], "App.Markup", "test"));
-        Assert.Equal(1 + 1 + 1 + 1 + 5 + 3 + 1 + 1, methods); // Count Item KeyParam Row OnPick×5 OnPing×3 Rest Attr
+        Assert.Equal(1 + 1 + 1 + 1 + 5 + 3 + 1 + 4 + 1, methods); // Count Item KeyParam Row OnPick×5 OnPing×3 Rest Class/ClassReplace×4 Attr
         const string use = """
             using PureMarkup.Blazor;
             using App.Markup;

@@ -134,6 +134,7 @@ public static class ElementExtensions
     public static T BindOn<T, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TValue>(this T el, string eventName, Func<TValue> get, Action<TValue> set) where T : struct, IElement
     {
         var a = RenderArena.Current;
+        a.ThrowIfRecording("Bind");
         var value = get();
         var receiver = a.Receiver ?? throw new InvalidOperationException("Bind needs a receiving component.");
         var attr = typeof(TValue) == typeof(bool) ? "checked" : "value";

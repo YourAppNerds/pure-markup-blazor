@@ -34,6 +34,58 @@ public readonly struct ComponentNode<[DynamicallyAccessedMembers(DynamicallyAcce
     /// <summary>Sets a parameter by name (also for same-project <c>.razor</c> components and unmatched attributes).</summary>
     public ComponentNode<T> Param(string name, object? value) => Add(AttrKind.Param, name, value);
 
+    /// <summary>
+    /// Applies <paramref name="preset"/>: parameters merge by name (local wins in any call order), classes add up, a later
+    /// <c>.Use</c> replaces an earlier one. Then runs the preset's <c>.Also</c> actions.
+    /// </summary>
+    public ComponentNode<T> Use(Preset<ComponentNode<T>> preset)
+    {
+        ArgumentNullException.ThrowIfNull(preset);
+        var data = preset.Data;
+        var a = RenderArena.Current;
+        a.UsePreset(_node, data);
+        if (data.Actions.Length == 0) return this;
+        if (a.IsRecordingRoot(_node)) (a.RecordedActions ??= []).AddRange(data.Actions);
+        else foreach (var action in data.Actions) ((Action<ComponentNode<T>>)action)(this);
+        return this;
+    }
+
+    /// <summary>Inside a preset: runs at every <c>.Use</c> / <c>.New</c> (see <see cref="PresetExtensions.Also{T}"/>). Outside a preset it runs at once.</summary>
+    public ComponentNode<T> Also(Action<ComponentNode<T>> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        var a = RenderArena.Current;
+        if (a.IsRecordingRoot(_node)) (a.RecordedActions ??= []).Add(action);
+        else action(this);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds to the class parameter <paramref name="name"/> (<c>class</c> for an unmatched attribute, or a <c>Class</c> parameter):
+    /// additive, like an element's class. <paramref name="replace"/> drops a preset's classes. Generated <c>.Class</c> /
+    /// <c>.ClassReplace</c> methods call this.
+    /// </summary>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public ComponentNode<T> AddClass(string name, string? value, bool replace = false)
+    {
+        var a = RenderArena.Current;
+        if (replace) a.ReplaceClass(_node);
+        a.AddParamClass(_node, name, value);
+        return this;
+    }
+
+    /// <inheritdoc cref="AddClass(string, string?, bool)"/>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public ComponentNode<T> AddClass(string name, Styling.Rule rule, bool replace = false)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        var a = RenderArena.Current;
+        if (replace) a.ReplaceClass(_node);
+        if (a.Recording) (a.RecordedRules ??= []).Add(rule);
+        a.AddParamClass(_node, name, rule.ClassName);
+        return this;
+    }
+
     /// <summary>Razor's <c>@key</c>.</summary>
     public ComponentNode<T> Key(object? key)
     {

@@ -36,6 +36,8 @@ internal enum AttrKind : byte
     /// <summary>Value is <c>Func&lt;T, Node&gt;</c>; Aux the <see cref="FragmentFactory"/>.</summary>
     ParamFragmentOf,
     ParamText,
+    /// <summary>Where a <c>.Use(preset)</c> writes the preset's attributes; the preset is <see cref="NodeFrame.Preset"/>.</summary>
+    Preset,
     // Written after all attributes, in this order.
     ElementRef,
     ComponentRef,
@@ -53,8 +55,10 @@ internal struct NodeFrame
     public object? Key;
     public int FirstAttr;     // 1-based into Attrs; 0 = none
     public int LastAttr;
-    public int ClassAttr;     // index of the merged class attribute, 0 = none
+    public int ClassAttr;     // index of the merged class attribute (element) or class parameter (component), 0 = none
     public int StyleAttr;     // index of the merged style attribute, 0 = none
+    public PresetData? Preset; // applied with .Use; merged with the local attributes when written
+    public bool ClassReplace; // .ClassReplace: drop the preset's classes
     public int AttrSeq;       // next attribute sequence number (counts skipped null attributes too)
     public int FirstKid;
     public int KidCount;
@@ -94,6 +98,15 @@ internal sealed class RenderArena
 
     internal int ScopeId;
     internal object? Receiver;
+
+    /// <summary>Set on an arena that records a preset (<see cref="EnterRecording"/>). Kept alive by the preset, never pooled.</summary>
+    internal bool Recording;
+    /// <summary>The node a preset records into; <c>.Also</c> and a nested <c>.Use</c> on it are deferred to each use.</summary>
+    internal int RecordingRoot;
+    /// <summary>Rules applied with <c>.Class(rule)</c> while recording (the preset's rules, for the <c>pm.preset</c> layer).</summary>
+    internal List<Styling.Rule>? RecordedRules;
+    /// <summary><c>.Also</c> actions recorded while recording.</summary>
+    internal List<Delegate>? RecordedActions;
     private RenderArena? _parent;
     private RenderArena? _nextFree;
 
@@ -112,6 +125,22 @@ internal sealed class RenderArena
         a.Receiver = receiver;
         t_current = a;
         return a;
+    }
+
+    /// <summary>A fresh arena for recording a preset: nested like a render scope, but owned by the preset afterwards.</summary>
+    internal static RenderArena EnterRecording()
+    {
+        var a = new RenderArena { Recording = true, _parent = t_current, ScopeId = Interlocked.Increment(ref s_scopeIds) };
+        t_current = a;
+        return a;
+    }
+
+    internal static void ExitRecording(RenderArena a)
+    {
+        if (!ReferenceEquals(t_current, a)) throw new InvalidOperationException("Render scopes exited out of order.");
+        t_current = a._parent;
+        a._parent = null;
+        a.ScopeId = 0; // nodes recorded here are only read through the preset from now on
     }
 
     internal static void Exit(RenderArena a)
@@ -167,22 +196,59 @@ internal sealed class RenderArena
             "build them inside Render() (or the fragment lambda), or use Static(...) for constant content.");
     }
 
-    /// <summary>Appends an attribute. A null name/value pair still consumes a sequence number so later ones keep theirs.</summary>
+    /// <summary>Appends an attribute. A null value is written as nothing but still consumes a sequence number so later ones keep theirs.</summary>
     internal void AddAttr(Node n, AttrKind kind, string name, object? value, object? aux = null)
     {
         ref var f = ref Frame(n);
         var seq = f.AttrSeq++;
-        if (value is null && kind is AttrKind.String or AttrKind.Object) return; // absent, as Razor omits null attributes
+        // A null attribute is absent, as Razor omits it, but its frame is kept (and skipped when written) so it still
+        // beats a preset's value of the same name, whichever comes first.
         Append(ref f, seq, kind, name, value, aux);
     }
 
     /// <summary>Adds to the element's one <c>class</c> attribute (space-separated), so strings and rules are additive.</summary>
-    internal void AddClass(Node n, string? value) => AddMerged(n, "class", value, ' ', isClass: true);
+    internal void AddClass(Node n, string? value) => AddMerged(n, AttrKind.String, "class", value, ' ', isClass: true);
+
+    /// <summary>Adds a rule's class, remembering the rule while a preset records.</summary>
+    internal void AddClass(Node n, Styling.Rule rule, bool when = true)
+    {
+        if (when && Recording) (RecordedRules ??= []).Add(rule);
+        AddClass(n, when ? rule.ClassName : null);
+    }
+
+    /// <summary>A component's class parameter (<c>class</c> unmatched attribute or a <c>Class</c> parameter): additive like an element's.</summary>
+    internal void AddParamClass(Node n, string name, string? value) => AddMerged(n, AttrKind.Param, name, value, ' ', isClass: true);
+
+    /// <summary><c>.ClassReplace</c>: the preset's classes are dropped from this node; local classes stay additive.</summary>
+    internal void ReplaceClass(Node n) => Frame(n).ClassReplace = true;
 
     /// <summary>Adds to the element's one <c>style</c> attribute; later declarations win, as in CSS.</summary>
-    internal void AddStyle(Node n, string? value) => AddMerged(n, "style", value, ';', isClass: false);
+    internal void AddStyle(Node n, string? value) => AddMerged(n, AttrKind.String, "style", value, ';', isClass: false);
 
-    private void AddMerged(Node n, string name, string? value, char separator, bool isClass)
+    /// <summary>
+    /// <c>.Use(preset)</c>: one attribute sequence number, like any call, so later attributes keep theirs. A later
+    /// <c>.Use</c> replaces the preset but keeps the first one's position.
+    /// </summary>
+    internal void UsePreset(Node n, PresetData preset)
+    {
+        ref var f = ref Frame(n);
+        var seq = f.AttrSeq++;
+        if (f.Preset is null) Append(ref f, seq, AttrKind.Preset, "", null, null);
+        f.Preset = preset;
+        if (preset.HasTrailing) f.HasTrailing = true;
+    }
+
+    /// <summary>True when <paramref name="n"/> is the node a preset is recording into.</summary>
+    internal bool IsRecordingRoot(Node n) => Recording && n.Index == RecordingRoot && n.Scope == ScopeId;
+
+    /// <summary>Throws when a preset is recording: for calls that only make sense on a node in a render.</summary>
+    internal void ThrowIfRecording(string what)
+    {
+        if (Recording)
+            throw new InvalidOperationException($"{what} cannot be part of a preset: a preset is built once and shared. Call it where the preset is used.");
+    }
+
+    private void AddMerged(Node n, AttrKind kind, string name, string? value, char separator, bool isClass)
     {
         ref var f = ref Frame(n);
         var seq = f.AttrSeq++; // still one sequence number per call, so later attributes keep theirs
@@ -195,7 +261,7 @@ internal sealed class RenderArena
             at.Value = separator == ';' && old.EndsWith(';') ? old + " " + value : old + (separator == ';' ? "; " : " ") + value;
             return;
         }
-        var i = Append(ref f, seq, AttrKind.String, name, value, null);
+        var i = Append(ref f, seq, kind, name, value, null);
         if (isClass) f.ClassAttr = i;
         else f.StyleAttr = i;
     }

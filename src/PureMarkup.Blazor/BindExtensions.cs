@@ -36,6 +36,7 @@ public static class BindExtensions
     private static ComponentNode<TComp> Fallback<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TComp, TValue>(
         ComponentNode<TComp> node, Expression<Func<TValue>> expr) where TComp : IComponent
     {
+        Rendering.RenderArena.Current.ThrowIfRecording("Bind");
         Interlocked.Increment(ref BindRuntime.FallbackCount);
         var (target, member) = BindRuntime.Resolve(expr);
         return BindCore(node, expr, (TValue)BindRuntime.Get(target, member)!, v => BindRuntime.Set(target, member, v));
@@ -44,8 +45,11 @@ public static class BindExtensions
     /// <summary>What both paths end in. Called by generated interceptors.</summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static ComponentNode<TComp> BindCore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TComp, TValue>(
-        ComponentNode<TComp> node, Expression<Func<TValue>> expr, TValue value, Action<TValue> setter) where TComp : IComponent =>
-        node.Param("Value", value).Callback("ValueChanged", setter).Param("ValueExpression", expr);
+        ComponentNode<TComp> node, Expression<Func<TValue>> expr, TValue value, Action<TValue> setter) where TComp : IComponent
+    {
+        Rendering.RenderArena.Current.ThrowIfRecording("Bind");
+        return node.Param("Value", value).Callback("ValueChanged", setter).Param("ValueExpression", expr);
+    }
 }
 
 /// <summary>Runtime support for <see cref="BindExtensions"/> and its generated interceptors.</summary>

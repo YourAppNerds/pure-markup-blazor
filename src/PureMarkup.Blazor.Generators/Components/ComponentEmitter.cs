@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace PureMarkup.Blazor.Generators.Components;
@@ -60,9 +61,29 @@ internal static class ComponentEmitter
             count++;
         }
 
+        const string Rule = "global::PureMarkup.Blazor.Styling.Rule";
+        void ClassMethods(string name, string doc)
+        {
+            Method("Class", doc, "string? value", "c.AddClass(" + name + ", value)");
+            Method("Class", doc, Rule + " rule", "c.AddClass(" + name + ", rule)");
+            doc = "Like <c>Class</c>, and drops a preset's classes.";
+            Method("ClassReplace", doc, "string? value", "c.AddClass(" + name + ", value, replace: true)");
+            Method("ClassReplace", doc, Rule + " rule", "c.AddClass(" + name + ", rule, replace: true)");
+        }
+
+        // A string Class parameter (MudBlazor's convention) is additive like an element's class, so presets can add to it.
+        var hasClassParam = false;
+        foreach (var p in c.Params)
+            if (p is { Name: "Class", Method: "Class", Kind: ParamKind.Value, Type: "string" or "string?" }) hasClassParam = true;
+
         foreach (var p in c.Params)
         {
             var doc = "<c>" + p.Name + "</c> parameter.";
+            if (hasClassParam && p.Name == "Class")
+            {
+                ClassMethods("\"Class\"", "<c>Class</c> parameter. Additive: each call adds classes (strings and rules), as on elements.");
+                continue;
+            }
             var name = "\"" + p.Name + "\"";
             switch (p.Kind)
             {
@@ -95,6 +116,8 @@ internal static class ComponentEmitter
                     break;
             }
         }
+        if (c.CapturesUnmatched && !hasClassParam && !c.Params.Any(p => p.Method is "Class" or "ClassReplace"))
+            ClassMethods("\"class\"", "Adds to the <c>class</c> attribute the component captures. Additive: strings and rules.");
         if (c.CapturesUnmatched)
             Method("Attr", "An attribute the component captures (<c>CaptureUnmatchedValues</c>), as Razor's unmatched attributes.",
                 "string name, object? value", "c.Param(name, value)");

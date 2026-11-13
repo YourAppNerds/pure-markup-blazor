@@ -95,6 +95,14 @@ public sealed class HtmlGenerator : IIncrementalGenerator
             sb.Append("    public static ").Append(el.Type).Append(' ').Append(el.Method).Append("() => new(RenderArena.Current.NewNode(NodeKind.Element, \"")
               .Append(el.Tag).AppendLine("\"));");
         }
+        sb.AppendLine("}").AppendLine();
+        // Tags by element type, for a preset's .New().
+        sb.AppendLine("internal static class ElementTags").AppendLine("{");
+        sb.AppendLine("    private static readonly global::System.Collections.Generic.Dictionary<global::System.Type, string> Tags = new()").AppendLine("    {");
+        foreach (var el in d.Elements)
+            sb.Append("        [typeof(").Append(el.Type).Append(")] = \"").Append(el.Tag).AppendLine("\",");
+        sb.AppendLine("    };");
+        sb.AppendLine("    public static string? Of(global::System.Type type) => Tags.TryGetValue(type, out var tag) ? tag : null;");
         sb.AppendLine("}");
         yield return ("Html.Elements.g.cs", sb.ToString());
 

@@ -9,14 +9,14 @@ public static class StyleExtensions
     /// <summary>Adds the rule's class. Costs one string at render: the rule's CSS is in the build-time stylesheet.</summary>
     public static T Class<T>(this T el, Rule rule) where T : struct, IElement
     {
-        RenderArena.Current.AddClass(el.Node, rule.ClassName);
+        RenderArena.Current.AddClass(el.Node, rule);
         return el;
     }
 
     /// <summary>Adds the rule's class when <paramref name="when"/> holds.</summary>
     public static T Class<T>(this T el, Rule rule, bool when) where T : struct, IElement
     {
-        RenderArena.Current.AddClass(el.Node, when ? rule.ClassName : null);
+        RenderArena.Current.AddClass(el.Node, rule, when);
         return el;
     }
 
