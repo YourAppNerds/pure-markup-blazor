@@ -11,6 +11,7 @@ public sealed class MainLayout : MarkupLayout
         ("counter-wasm", "WebAssembly"),
         ("counter-auto", "Auto"),
         ("list", "List"),
+        ("grid", "Grid"),
     ];
 
     protected override Node Render() => Fragment(

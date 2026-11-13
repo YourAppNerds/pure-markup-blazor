@@ -52,6 +52,16 @@ await page.waitForFunction(() => document.querySelector('#summary').textContent 
 check(true, 'editing a row input updates the model and re-renders');
 check((await page.inputValue('#name-50')) === 'Item 50', 'other rows keep their values');
 
+// QuickGrid through consumer-time typed methods ([assembly: GenerateMarkup(typeof(QuickGrid<>), WholeAssembly = true)])
+await page.goto(base + '/grid');
+await page.waitForFunction(() => document.querySelector('#renderer')?.textContent.includes('Renderer: Server; interactive: True'), null, { timeout: 30000 });
+const names = () => page.$$eval('table.planets tbody tr td:first-child', tds => tds.map(td => td.textContent.trim()).join(','));
+check((await names()) === 'Mars,Earth,Jupiter', '/grid renders QuickGrid rows');
+check((await page.$$eval('table.planets tbody tr td:last-child', tds => tds.map(td => td.textContent).join(','))) === 'no,no,yes', 'TemplateColumn ChildContent renders');
+await page.click('table.planets th:nth-child(2) button.col-title');
+await page.waitForFunction(() => document.querySelector('table.planets tbody tr td:first-child')?.textContent.trim() === 'Earth');
+check((await names()) === 'Earth,Mars,Jupiter', 'sorting by Moons re-renders the grid');
+
 // CSS in C#: build-generated, fingerprinted stylesheets linked by StyleLink(); no .css files in the app.
 const prerendered = await (await page.request.get(base + '/counter-wasm')).text();
 const prerenderClass = /<button id="inc" class="([^"]+)"/.exec(prerendered)?.[1];
