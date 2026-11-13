@@ -17,8 +17,8 @@ public sealed class MainLayout : MarkupLayout
         Nav().Class(LayoutCss.Nav).Children(
             ForEach(Links, l => l.Href, l =>
                 Comp<NavLink>()
-                    .Param("href", l.Href)
-                    .Param(nameof(NavLink.Match), l.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)
+                    .Attr("href", l.Href)
+                    .Match(l.Href == "" ? NavLinkMatch.All : NavLinkMatch.Prefix)
                     .Children(l.Text))),
         Main().Class(LayoutCss.Main).Children(Content(Body)));
 }

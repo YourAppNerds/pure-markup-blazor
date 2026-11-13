@@ -11,9 +11,9 @@ public sealed class Routes : MarkupComponent
 
     protected override Node Render() =>
         Comp<Router>()
-            .Param(nameof(Router.AppAssembly), typeof(Program).Assembly)
-            .Param(nameof(Router.AdditionalAssemblies), Additional)
-            .Fragment<RouteData>(nameof(Router.Found), route => Fragment(
-                Comp<RouteView>().Param(nameof(RouteView.RouteData), route).Param(nameof(RouteView.DefaultLayout), typeof(MainLayout)),
-                Comp<FocusOnNavigate>().Param(nameof(FocusOnNavigate.RouteData), route).Param(nameof(FocusOnNavigate.Selector), "h1")));
+            .AppAssembly(typeof(Program).Assembly)
+            .AdditionalAssemblies(Additional)
+            .Found(route => Fragment(
+                Comp<RouteView>().RouteData(route).DefaultLayout(typeof(MainLayout)),
+                Comp<FocusOnNavigate>().RouteData(route).Selector("h1")));
 }

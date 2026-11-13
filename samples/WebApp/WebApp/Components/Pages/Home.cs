@@ -20,11 +20,11 @@ public sealed class Home : MarkupComponent
         H1().Text("Home (static SSR)"),
         P().Id("renderer").Text($"Renderer: {RendererInfo.Name}; interactive: {RendererInfo.IsInteractive}"),
         Comp<EditForm>()
-            .Param(nameof(EditForm.Model), Model)
-            .Param(nameof(EditForm.FormName), "greet")
-            .Callback<EditContext>(nameof(EditForm.OnValidSubmit), Submit)
-            .ChildContent<EditContext>(_ => Fragment(
-                Comp<InputText>().Param("id", "name").Bind(() => Model!.Name),
+            .Model(Model)
+            .FormName("greet")
+            .OnValidSubmit(Submit)
+            .ChildContent(_ => Fragment(
+                Comp<InputText>().Attr("id", "name").Bind(() => Model!.Name),
                 Button().Id("submit").Type(ButtonType.Submit).Text("Greet"))),
         If(_greeting is not null, () => P().Id("greeting").Text(_greeting)));
 
