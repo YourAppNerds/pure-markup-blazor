@@ -63,6 +63,9 @@ public readonly struct ComponentNode<[DynamicallyAccessedMembers(DynamicallyAcce
     /// <summary>A named <see cref="RenderFragment"/> parameter.</summary>
     public ComponentNode<T> Fragment(string name, Func<Node> content) => Add(AttrKind.ParamFragment, name, content);
 
+    /// <summary>A named <see cref="RenderFragment"/> parameter that is plain text.</summary>
+    public ComponentNode<T> Fragment(string name, string? text) => Add(AttrKind.ParamText, name, text);
+
     /// <summary>A named <see cref="RenderFragment{TContext}"/> parameter, e.g. <c>Router.Found</c>.</summary>
     public ComponentNode<T> Fragment<TContext>(string name, Func<TContext, Node> content) =>
         Add(AttrKind.ParamFragmentOf, name, content, FragmentFactory<TContext>.Instance);

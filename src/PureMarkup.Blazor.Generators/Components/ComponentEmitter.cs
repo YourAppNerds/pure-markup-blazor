@@ -80,6 +80,7 @@ internal static class ComponentEmitter
                 case ParamKind.Fragment:
                     doc = "<c>" + p.Name + "</c> fragment, built when the component renders it.";
                     Method(p.Method, doc, "global::System.Func<" + Node + "> content", "c.Fragment(" + name + ", content)");
+                    Method(p.Method, "<c>" + p.Name + "</c> fragment that is plain text.", "string? text", "c.Fragment(" + name + ", text)");
                     break;
                 case ParamKind.FragmentOf:
                     doc = "<c>" + p.Name + "</c> fragment, built when the component renders it.";
