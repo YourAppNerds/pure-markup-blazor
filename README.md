@@ -22,12 +22,37 @@ public sealed class Counter : MarkupComponent
 ## What is in the box
 - `Div()`, `Input()`, ... for 112 HTML elements, typed attribute methods (`A().Href(...)` compiles, `Div().Href(...)` does not),
   enums for closed value sets, and `On<Event>` methods for all 96 Blazor events. Generated from `src/PureMarkup.Blazor/Html/html.data`.
-- `Comp<T>()` for components: `.Param`, `.Children(() => ...)`, `.ChildContent<TContext>(...)`, `.Callback`, `.Key`, `.Ref`, `.RenderMode`.
+- `Comp<T>()` for components, with typed parameter methods for every framework component (see below), plus `.Children(() => ...)`,
+  `.Key`, `.Ref`, `.RenderMode`, and the untyped `.Param`, `.Fragment`, `.Callback`.
 - `If`, `ForEach(items, key, body)`, `Fragment`, `Content(RenderFragment)`, `Static(static () => ...)`, `Markup`, `Doctype`.
 - `.Bind(() => model.Name)` on inputs, with no `Expression.Compile()`: a source generator intercepts the call; other shapes use a reflection walk.
   `.Bind(() => v, x => v = x)` on elements.
 - `MarkupComponent`, `MarkupLayout`, and `[InteractiveServer]`, `[InteractiveWebAssembly]`, `[InteractiveAuto]`.
 - Trimming and AOT analyzers are on and report nothing.
+
+## Components
+```csharp
+Comp<EditForm>().Model(Draft).FormName("draft").OnValidSubmit(Save).ChildContent(ctx => Fragment(
+    Comp<InputNumber<int>>().Value(Draft.Age).ValueChanged(v => Draft.Age = v).ValueExpression(() => Draft.Age).Attr("id", "age"),
+    Button().Type(ButtonType.Submit).Text("Save")))
+Comp<AuthorizeView>().Authorized(s => P().Text($"Hi {s.User.Identity!.Name}")).NotAuthorized(_ => P().Text("Sign in"))
+```
+- Components cannot be `new`ed, so `Comp<T>()` describes one and parameters are extension methods on it, one per `[Parameter]`
+  (inherited ones included). On a generic component the type argument comes from the receiver: `Comp<InputNumber<int>>().Value(5)`.
+- Generated when the library is built, from the framework assemblies it references: `Microsoft.AspNetCore.Components`
+  (`.Routing`, `.Sections`, ...), `.Web`, `.Forms`, `.Authorization`. 34 components, 183 methods on net10.0.
+- `EventCallback<T>`: `Action`, `Action<T>`, `Func<Task>`, `Func<T, Task>` (the component rendering the markup is the receiver,
+  so it re-renders, as with `On<Event>`), or an `EventCallback<T>` to forward. `EventCallback`: `Action`, `Func<Task>`, `EventCallback`.
+- `RenderFragment`: `Func<Node>`; `RenderFragment<T>`: `Func<T, Node>`. Both are built when the child renders the fragment.
+  There is no `Node` overload: a node belongs to the render that built it, and the child renders the fragment later.
+  To pass an existing `RenderFragment`, use `.Param("Name", fragment)`.
+- `ChildContent`: `.Children(() => ...)` / `.Children("text")` for `RenderFragment`; a typed `.ChildContent(ctx => ...)` for `RenderFragment<T>`.
+- `.Attr(name, value)` on components with a `CaptureUnmatchedValues` parameter (`InputText`, `NavLink`, `EditForm`, ...).
+- `ValueExpression`-style parameters take `Expression<Func<T>>`. `[CascadingParameter]` and `[SupplyParameterFrom*]` get no method.
+- Name clash rule: a parameter named like a `ComponentNode<T>` member (`Key`, `Ref`, `RenderMode`, `Param`, `Children`, `Attr`, ...)
+  gets the suffix `Param`: a `Key` parameter is `.KeyParam(...)`, while `.Key(...)` stays Razor's `@key`.
+- Values are stored like `.Param` (value types are boxed, as Razor's `AddComponentParameter(int, string, object)` does).
+- Your own and third-party components: `.Param("Name", value)`, `.Fragment`, `.Callback` until consumer-side generation lands.
 
 ## Styling: CSS in C#
 ```csharp
