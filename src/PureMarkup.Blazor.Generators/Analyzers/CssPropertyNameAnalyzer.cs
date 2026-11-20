@@ -12,7 +12,7 @@ namespace PureMarkup.Blazor.Generators.Analyzers;
 /// <summary>
 /// <c>.Prop("name", value)</c> with a constant name: PMCSS020 (warning) when the name is not a w3c/webref property or legacy
 /// alias (the <c>prop</c>, <c>alias</c> and <c>descriptors</c> lines of <c>Css/css.data</c>, embedded at build time), a custom property
-/// (<c>--x</c>) or vendor-prefixed (<c>-webkit-x</c>), nor an <c>@font-face</c> descriptor inside <c>Css.FontFace</c>, with a suggestion for a near miss; PMCSS021 (info) when the property has
+/// (<c>--x</c>) or vendor-prefixed (<c>-webkit-x</c>), nor an <c>@font-face</c> descriptor inside <c>Css.FontFace</c>, with a suggestion for a near miss; PMCSS021 (hidden: an IDE hint, not a list entry) when the property has
 /// a typed method. Non-constant names are not checked.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -28,7 +28,7 @@ public sealed class CssPropertyNameAnalyzer : DiagnosticAnalyzer
     internal static readonly DiagnosticDescriptor HasTypedMethod = new(
         "PMCSS021", "CSS property has a typed method",
         "'{0}' has a typed method: use .{1}(...)",
-        Category, DiagnosticSeverity.Info, isEnabledByDefault: true);
+        Category, DiagnosticSeverity.Hidden, isEnabledByDefault: true);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(Unknown, HasTypedMethod);
 

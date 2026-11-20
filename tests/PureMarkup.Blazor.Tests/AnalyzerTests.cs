@@ -183,13 +183,28 @@ public class AnalyzerTests
         ], d);
     }
 
+    /// <summary>PMCSS021 is an IDE hint (Hidden), so it stays out of the error list; PMCSS020 stays a warning.</summary>
+    [Fact]
+    public void PropNames_Severities()
+    {
+        var c = Compile(["""
+            [Stylesheet]
+            public static class P
+            {
+                public static Rule A { get; } = Css.Rule(r => r.Prop("color", "red").Prop("colr", "red"));
+            }
+            """]);
+        var d = Analyze(c).OrderBy(x => x.Id).Select(x => $"{x.Id} {x.Severity}").ToList();
+        Assert.Equal(["PMCSS020 Warning", "PMCSS021 Hidden"], d);
+    }
+
     public static TheoryData<string, string> Apps => new()
     {
         { "samples/WebApp", "WebApp.Client.Theme.Tokens" },
         { "templates/PureMarkup.Blazor.Templates/content/puremarkup-blazor", "PureMarkupApp.Theme.Tokens" },
     };
 
-    /// <summary>The sample and the template stay free of PMCSS warnings and errors (info suggestions are fine).</summary>
+    /// <summary>The sample and the template stay free of PMCSS warnings and errors (hidden hints are fine).</summary>
     [Theory]
     [MemberData(nameof(Apps))]
     public void SampleAndTemplate_HaveNoPmcssWarnings(string dir, string tokensType)

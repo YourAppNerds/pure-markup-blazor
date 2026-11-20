@@ -125,7 +125,8 @@ Div().Class("raw").Class(CardCss.Card).Set(CardCss.Progress, Percent(40))   // c
 - 747 typed properties with keyword types (`Display.Flex`) from w3c/webref (`Css/css.data`, `tools/cssdata`); `.Prop(name, value)` for the rest.
   A constant name is checked against webref (properties, legacy aliases such as `word-wrap`, and `@font-face` descriptors
   inside `Css.FontFace`): `PMCSS020` (warning) for an unknown name, with a near-miss suggestion (`"colr"`, `"backgroundColor"`);
-  `--custom` and `-vendor-` names and non-constant names are not checked. `PMCSS021` (info) when a typed method exists.
+  `--custom` and `-vendor-` names and non-constant names are not checked. `PMCSS021` (hidden by default, so it stays out of the error list;
+  raise it with `dotnet_diagnostic.PMCSS021.severity = suggestion` in `.editorconfig`) when a typed method exists.
 - Purity: the build runs `[Stylesheet]` types and static `Preset<T>` members in a separate process with no DI, JS or app
   environment, so analyzers flag, in those types and members (rule bodies included): `PMCSS010` (error) DI, JS or network
   (`[Inject]`, `IServiceProvider`, `Microsoft.JSInterop`, `NavigationManager`, `HttpClient`, `Microsoft.AspNetCore.Http`,
