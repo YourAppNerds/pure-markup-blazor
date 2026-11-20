@@ -4,6 +4,8 @@
 #   keywords <CsType> <keyword>=<Member> ...      (properties whose top-level alternatives hold 2+ keywords)
 #   prop <css-name>=<CsName> [kw=<CsType>] [angle] [color] [length] [number] [time] [multi]
 #     length covers <length>, <length-percentage> and <percentage>; multi = shorthand or space-separated parts
+#   alias <css-name>=<css-name>                    (legacy alias of a property: no method)
+#   descriptors <@at-rule> <name> ...              (at-rule descriptors: no method)
 keywords AlignContent normal=Normal space-between=SpaceBetween space-around=SpaceAround space-evenly=SpaceEvenly stretch=Stretch center=Center start=Start end=End flow-start=FlowStart flow-end=FlowEnd flex-start=FlexStart flex-end=FlexEnd
 keywords AlignItems normal=Normal stretch=Stretch center=Center start=Start end=End self-start=SelfStart self-end=SelfEnd flow-start=FlowStart flow-end=FlowEnd flex-start=FlexStart flex-end=FlexEnd
 keywords AlignSelf auto=Auto normal=Normal center=Center start=Start end=End self-start=SelfStart self-end=SelfEnd flow-start=FlowStart flow-end=FlowEnd flex-start=FlexStart flex-end=FlexEnd stretch=Stretch anchor-center=AnchorCenter
@@ -1169,3 +1171,9 @@ prop x=X length
 prop y=Y length
 prop z-index=ZIndex kw=ZIndex number
 prop zoom=Zoom length number
+alias font-stretch=font-width
+alias grid-column-gap=column-gap
+alias grid-gap=gap
+alias grid-row-gap=row-gap
+alias word-wrap=overflow-wrap
+descriptors @font-face ascent-override descent-override font-display font-family font-feature-settings font-language-override font-named-instance font-size font-style font-variation-settings font-weight font-width line-gap-override size-adjust src subscript-position-override subscript-size-override superscript-position-override superscript-size-override unicode-range
