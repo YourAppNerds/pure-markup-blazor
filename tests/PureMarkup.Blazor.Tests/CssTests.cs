@@ -89,8 +89,11 @@ public class CssTests
 {
     private static readonly Type[] Sheets = [typeof(TestTokens), typeof(TestCss)];
 
+    /// <summary>One snapshot per configuration: class and variable names are readable in Debug
+    /// (<c>{Type}_{Member}-{hash}</c>) and <c>pm-{hash}</c> in Release.</summary>
     [Fact]
-    public Task Emitted_css_matches_snapshot() => Verify(CssEmitter.Emit(Sheets, [typeof(TestPresets)]), extension: "css");
+    public Task Emitted_css_matches_snapshot() =>
+        Verify(CssEmitter.Emit(Sheets, [typeof(TestPresets)]), extension: "css").UniqueForAssemblyConfiguration();
 
     [Fact]
     public void Emit_by_assembly_finds_the_stylesheet_types_and_presets() =>
