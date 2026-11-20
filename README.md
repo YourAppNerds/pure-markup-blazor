@@ -231,6 +231,7 @@ dotnet pack templates/PureMarkup.Blazor.Templates -c Release      # both go to a
 dotnet new install artifacts/packages/PureMarkup.Blazor.Templates.0.1.0-preview.1.nupkg
 dotnet nuget add source <repo>/artifacts/packages -n puremarkup-local   # until the packages are on nuget.org
 dotnet new puremarkup-blazor -o MyApp --interactivity Auto --sample-content
+dotnet new puremarkup-blazor -o MyApp --interactivity Auto --all-interactive   # every page interactive
 dotnet new puremarkup-blazor-page -n Orders -o Components/Pages        # inside a restored project
 ```
 - `puremarkup-blazor`: a Blazor Web App like `dotnet new blazor`, with no `.razor` or `.html` files (and no `app.css` or
@@ -239,15 +240,28 @@ dotnet new puremarkup-blazor-page -n Orders -o Components/Pages        # inside 
 - `--interactivity None|Server|WebAssembly|Auto` (default `Server`); `WebAssembly` and `Auto` add a `.Client` project (`IsTrimmable`),
   which holds `Theme/` and the interactive pages. Interactivity is per page, through `[InteractiveServer]`,
   `[InteractiveWebAssembly]`, `[InteractiveAuto]`, as the stock template's default.
+- `--all-interactive` (`-ai`, as in `dotnet new blazor`): the render mode is set once, on `Routes` and `HeadOutlet` in `App.cs`
+  (`Comp<Routes>().RenderMode(...)`, Razor's `<Routes @rendermode="..." />`), and pages carry no attribute. With `WebAssembly`
+  or `Auto`, `Routes`, the layout and every page move to the `.Client` project; `App` and `Error` (which reads `HttpContext`)
+  stay on the server. Ignored with `--interactivity None`.
+- What goes in `.Client` (WebAssembly and Auto): every component that runs in the browser, so an interactive page and
+  everything it renders (its components, presets and `[Stylesheet]` classes), and with `--all-interactive` the router and
+  layout too. The server project references `.Client` and can use all of it; `.Client` cannot see the server project.
+  Static (SSR) pages and server-only code (`HttpContext`, databases, secrets) stay on the server.
+- Crossing into an interactive component: its parameters must be serializable, so a static parent cannot pass a `Node`,
+  a `RenderFragment` (`.Children(...)`, typed fragment methods) or a callback to a child with a render mode, exactly as in
+  Razor; the framework throws at render time. Pass data, or move the parent into the interactive part.
 - `--sample-content`: Counter (interactive modes only) and Weather (stream rendering). `--framework net10.0|net11.0`
   (net11.0 is wired but untested). `--no-restore`.
 - `puremarkup-blazor-page`: one `MarkupComponent` page. `--route` (default `/<name in lower case>`), `--namespace` (default: the root
   namespace of the restored project in the output folder), `--interactivity`.
-- Not yet: standalone WebAssembly, `--auth`, PWA, global (`--all-interactive`) interactivity, the reconnect modal and nav icons.
+- Not yet: standalone WebAssembly, `--auth`, PWA, the reconnect modal and nav icons.
 - `node scripts/verify-template.mjs` packs both packages, installs the templates into a throwaway hive (`--debug:custom-hive`),
-  instantiates every mode with and without sample content, builds and runs each, and checks `/`, `/_framework/blazor.web.js`,
-  the `.pm.css` links, the 404 page, zero `.razor`/`.html`, Counter clicks (Playwright, from `samples/WebApp`) and item-template
-  pages. Packages restore into a scratch `NUGET_PACKAGES`, so a repack of the same version is always picked up.
+  instantiates every mode with and without sample content, plus `--all-interactive` for Auto (with and without sample
+  content), Server and WebAssembly (with), builds and runs each (12 cases), and checks `/`, `/_framework/blazor.web.js`, the
+  `.pm.css` links, the 404 page, zero `.razor`/`.html`, Counter clicks (Playwright, from `samples/WebApp`), file placement and
+  render-mode attributes, and item-template pages. Packages restore into a scratch `NUGET_PACKAGES`, so a repack of the same
+  version is always picked up.
 
 ## Repository and license
 `src/` library, generators and the CSS build tool, `templates/` dotnet new templates, `scripts/` template check, `tests/` xUnit,
