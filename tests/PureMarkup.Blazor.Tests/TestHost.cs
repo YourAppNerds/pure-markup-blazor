@@ -68,6 +68,15 @@ sealed class TestRenderer() : Renderer(new ServiceCollection().BuildServiceProvi
 
     public ArrayRange<RenderTreeFrame> Frames(int componentId) => GetCurrentRenderTreeFrames(componentId);
 
+    /// <summary>Render modes the renderer was asked to resolve (Razor's <c>@rendermode</c>); the component is created as usual.</summary>
+    public List<IComponentRenderMode> ResolvedRenderModes = [];
+
+    protected override IComponent ResolveComponentForRenderMode(Type componentType, int? parentComponentId, IComponentActivator componentActivator, IComponentRenderMode renderMode)
+    {
+        ResolvedRenderModes.Add(renderMode);
+        return componentActivator.CreateInstance(componentType);
+    }
+
     /// <summary>Handler id of the <paramref name="nth"/> attribute named <paramref name="eventName"/> in the component's frames.</summary>
     public ulong Handler(int componentId, string eventName, int nth = 0)
     {

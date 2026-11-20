@@ -87,6 +87,16 @@ public sealed class TextChild : MarkupComponent
     protected override Node Render() => Comp<Card>().Param("Title", "X").Children("plain & text");
 }
 
+/// <summary>Razor's <c>&lt;Card @rendermode="..." /&gt;</c>: set before and after parameters, null, and absent.</summary>
+public sealed class WithRenderModes : MarkupComponent
+{
+    protected override Node Render() => Fragment(
+        Comp<Card>().RenderMode(RenderMode.InteractiveServer).Param("Title", "A"),
+        Comp<Card>().Param("Title", "B").RenderMode(RenderMode.InteractiveAuto),
+        Comp<Card>().Param("Title", "C").RenderMode(null),
+        Comp<Card>().Param("Title", "D"));
+}
+
 
 public sealed class StaticPageStatic : MarkupComponent
 {
@@ -310,6 +320,24 @@ public class RenderingTests
         Assert.Same(RenderMode.InteractiveServer, new InteractiveServerAttribute().Mode);
         Assert.Same(RenderMode.InteractiveWebAssembly, new InteractiveWebAssemblyAttribute().Mode);
         Assert.Same(RenderMode.InteractiveAuto, new InteractiveAutoAttribute().Mode);
+    }
+
+    [Fact]
+    public void RenderMode_OnComponentNode_WritesAComponentRenderModeFrame()
+    {
+        var r = new TestRenderer();
+        var id = r.Render(new WithRenderModes());
+        var modes = new List<string>();
+        var frames = r.Frames(id);
+        for (var i = 0; i < frames.Count; i++)
+        {
+            ref var f = ref frames.Array[i];
+            if (f.FrameType == RenderTreeFrameType.Component) modes.Add("component");
+            if (f.FrameType == RenderTreeFrameType.ComponentRenderMode) modes[^1] = f.ComponentRenderMode.GetType().Name;
+        }
+        Assert.Equal([nameof(InteractiveServerRenderMode), nameof(InteractiveAutoRenderMode), "component", "component"], modes);
+        // The renderer resolved the two instances through the render mode, as it does for Razor's @rendermode.
+        Assert.Equal([RenderMode.InteractiveServer, RenderMode.InteractiveAuto], r.ResolvedRenderModes);
     }
 
     [Fact]
