@@ -103,8 +103,25 @@ Div().Class("raw").Class(CardCss.Card).Set(CardCss.Progress, Percent(40))   // c
   Its selectors carry `[b-xxxx]` scope attributes and hit only that component's own elements, so a clash needs a rule aimed at those
   elements. To let `pm.*` rules win there, put the bundle in the `vendor` layer: `Css.ImportLayer("vendor", "WebApp.styles.css")`
   plus `StyleLink(scopedCss: false)` (not fingerprinted then; **unverified** in the sample).
-- File order: `@layer reset, vendor, pm.base, pm.preset, pm.local, pm.preset-state, pm.local-state, utilities;`. Rules go in
-  `pm.local`, their state blocks (`.Hover`, `.Active`, `.FocusVisible`, `.Disabled`, `.Checked`, `.When`) in `pm.local-state`.
+- File order: `@layer reset, vendor, pm.base, pm.preset, pm.local, pm.preset-state, pm.local-state, utilities;`. Every rule goes
+  in `pm.local`, its state blocks (`.Hover`, `.Active`, `.FocusVisible`, `.Disabled`, `.Checked`, `.When`) in `pm.local-state`.
+  Rules applied in a preset are also written to `pm.preset` / `pm.preset-state` under a separate class (see Presets).
+  A later layer beats an earlier one per property, whatever the specificity or source order:
+
+| On one element | Winner |
+|---|---|
+| Preset rule vs local rule (base values) | Local |
+| Preset `:hover` (any state block) vs local base value | Preset state: every state layer follows every base layer |
+| Local `:hover` vs preset `:hover` | Local |
+| `.With` derived preset's rule vs its base's | Derived (written later in `pm.preset`) |
+| Inline `.Style(...)` vs any rule | Inline |
+
+- Theme: `Css.Token("surface", light: ..., dark: ...)` writes the light value on `:root` (with `color-scheme: light dark`), the
+  dark one under `@media (prefers-color-scheme: dark)` unless `<html>` has `pm-light`, and both as classes: `.pm-dark` and
+  `.pm-light` on any element pin its subtree to one scheme (custom properties inherit, so the nearest themed ancestor wins).
+  `Html().Theme(ThemeMode.Dark)` / `Div().Theme(ThemeMode.Light)` writes the class (`ThemeMode.Auto` writes none;
+  `ThemeClass.Dark` / `.Light` are the names). Switching at runtime needs no re-render: toggle the class from JS,
+  `document.documentElement.classList.toggle('pm-dark')`, and every token-based value follows.
 - 747 typed properties with keyword types (`Display.Flex`) from w3c/webref (`Css/css.data`, `tools/cssdata`); `.Prop(name, value)` for the rest.
 - Also `.Nest`, `.Is`, `.Before`, `.Container`, `.Supports`, `Css.Global`, `Css.FontFace`, `Css.ImportLayer`, and `.Style(s => ...)` inline.
 - Setup: import `build/PureMarkup.Blazor.targets` (as `samples/Directory.Build.targets` does) and `using PureMarkup.Blazor.Styling;`.
@@ -146,8 +163,21 @@ Comp<InputText>().Use(AppPresets.Field).Bind(() => Model.Name)
   Rules must still be declared in a `[Stylesheet]` class; reference them from the preset (`.Class(ButtonCss.Primary)`).
 - Cost per render: `.Use` takes one attribute slot (the preset's attributes share its sequence number, so slots never move)
   and allocates nothing; merging happens when the node is written. Only a class or style set on both sides is concatenated.
-- Rules applied in a preset are kept apart from the node's own classes (for the `pm.preset` layer, next milestone); today
-  every rule is still written to `pm.local`.
+- Layers: a rule applied inside a preset writes `{class}-p` (`Rule.PresetClassName`); applied locally, its plain class. The
+  build evaluates every static `Preset<T>` property and field of the assembly (any class) and writes each preset rule once more,
+  as `.{class}-p`, in `pm.preset` (state blocks in `pm.preset-state`), base presets first (depth-first over `.With` and `.Use`
+  inside the lambda), so a derived preset's rules win. All rules keep their `pm.local` copy. See the table in Styling.
+- Why a separate class: with one class name in both layers, a rule R used in a preset on one element and locally on another
+  has a `pm.local` copy that matches every element carrying R, including one that got R only from its preset. There R would sit
+  in `pm.local` beside the element's own local rule L, and source order (not "local wins") would decide R against L. With
+  `R-p` the preset copy only ever lives in `pm.preset`, so L beats it per property in any order; `/cascade` in the sample checks this.
+- Limits: a rule shared by unrelated presets is written once, at its first use, so two presets that apply the same two rules in
+  opposite orders cannot both win (as with any one stylesheet). A preset only reachable from code (not a static member, or used
+  on a child inside another preset) is not scanned: its rules have no `-p` copy. Rules in a dependency's preset are written by
+  that dependency's own build.
+- Hot Reload: a `[MetadataUpdateHandler]` clears the preset cache and every preset's recorded writes, so an edited preset lambda
+  applies on the re-render that follows (static-field presets record again too). The `.pm.css` file is not rewritten: an edited
+  rule body, or a rule newly used in a preset (no `-p` copy yet), needs a rebuild (CSS Hot Reload is the M4 spike).
 
 ## How it renders
 `Render()` builds a tree of struct handles in per-render pooled arrays, which is then written to the `RenderTreeBuilder`.
