@@ -82,7 +82,7 @@ public readonly struct ComponentNode<[DynamicallyAccessedMembers(DynamicallyAcce
         var a = RenderArena.Current;
         if (replace) a.ReplaceClass(_node);
         if (a.Recording) (a.RecordedRules ??= []).Add(rule);
-        a.AddParamClass(_node, name, rule.ClassName);
+        a.AddParamClass(_node, name, a.RuleClass(rule));
         return this;
     }
 

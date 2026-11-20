@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.RegularExpressions;
+using PureMarkup.Blazor.Rendering;
 using static VerifyXunit.Verifier;
 
 namespace PureMarkup.Blazor.Tests;
@@ -52,6 +53,22 @@ public static class TestCss
     public static readonly Rule Badge = Css.Rule(r => r.BorderRadius(Px(4)));
 }
 
+/// <summary>Rules for the preset-layer test (not in the snapshot). Derived is declared before Base.</summary>
+[Stylesheet]
+public static class LayerCss
+{
+    public static Rule Derived { get; } = Css.Rule(r => r.Color(Hex("#00f")));
+    public static Rule Base { get; } = Css.Rule(r => r.Color(Hex("#f00")).Hover(h => h.Color(Hex("#0f0"))));
+    public static Rule LocalOnly { get; } = Css.Rule(r => r.Margin(0));
+}
+
+/// <summary>Not scanned by the snapshot: a .With chain declared before its base.</summary>
+public static class LayerPresets
+{
+    public static Preset<DivElement> Derived => Base.With(static p => p.Class(LayerCss.Derived));
+    public static Preset<DivElement> Base => Preset.Once<DivElement>(static p => p.Class(LayerCss.Base));
+}
+
 /// <summary>Not [Stylesheet]: passed to the emitter explicitly to show duplicate names fail.</summary>
 public static class DuplicateTokens
 {
@@ -73,11 +90,45 @@ public class CssTests
     private static readonly Type[] Sheets = [typeof(TestTokens), typeof(TestCss)];
 
     [Fact]
-    public Task Emitted_css_matches_snapshot() => Verify(CssEmitter.Emit(Sheets), extension: "css");
+    public Task Emitted_css_matches_snapshot() => Verify(CssEmitter.Emit(Sheets, [typeof(TestPresets)]), extension: "css");
 
     [Fact]
-    public void Emit_by_assembly_finds_the_stylesheet_types() =>
-        Assert.Equal(CssEmitter.Emit(Sheets), CssEmitter.Emit(typeof(TestCss).Assembly));
+    public void Emit_by_assembly_finds_the_stylesheet_types_and_presets() =>
+        Assert.Equal(CssEmitter.Emit([.. Sheets, typeof(LayerCss)], [typeof(LayerPresets), typeof(TestPresets)]), CssEmitter.Emit(typeof(TestCss).Assembly));
+
+    [Fact]
+    public void Preset_rules_go_to_the_preset_layers_base_first_and_keep_their_local_copy()
+    {
+        var css = CssEmitter.Emit([typeof(LayerCss)], [typeof(LayerPresets)]);
+        var layers = Layers(css);
+        string P(Rule r) => "." + r.PresetClassName;
+        string L(Rule r) => "." + r.ClassName;
+        var preset = layers["pm.preset"];
+        // Derived is declared first (stylesheet and presets), but its base's rules are written first, so the derived rule wins.
+        Assert.True(preset.IndexOf(P(LayerCss.Base) + " {", StringComparison.Ordinal) < preset.IndexOf(P(LayerCss.Derived) + " {", StringComparison.Ordinal));
+        Assert.Equal(1, Regex.Count(preset, Regex.Escape(P(LayerCss.Base)) + @" \{")); // once, though both presets apply it
+        Assert.Contains(P(LayerCss.Base) + ":hover", layers["pm.preset-state"]);
+        Assert.DoesNotContain(":hover", preset);
+        Assert.DoesNotContain(P(LayerCss.LocalOnly), css);
+        // Every rule is also written locally, under its own class: a rule used in a preset and locally is in both layers.
+        foreach (var r in new[] { LayerCss.Derived, LayerCss.Base, LayerCss.LocalOnly }) Assert.Contains(L(r) + " {", layers["pm.local"]);
+        Assert.Contains(L(LayerCss.Base) + ":hover", layers["pm.local-state"]);
+        Assert.DoesNotContain(LayerCss.Base.PresetClassName, layers["pm.local"] + layers["pm.local-state"]);
+        Assert.Contains("/* LayerCss.Base in LayerPresets.", preset);
+        Assert.False(Layers(CssEmitter.Emit([typeof(LayerCss)])).ContainsKey("pm.preset"));
+    }
+
+    [Fact]
+    public void Tokens_follow_the_media_query_and_the_theme_classes()
+    {
+        var b = Layers(CssEmitter.Emit(Sheets))["pm.base"];
+        Assert.Matches(@"@media \(prefers-color-scheme: dark\) \{\s*:root:not\(\.pm-light\) \{\s*--text: #eee;", b);
+        Assert.Matches(@"\.pm-dark \{\s*color-scheme: dark;\s*--text: #eee;\s*\}", b);
+        Assert.Matches(@"\.pm-light \{\s*color-scheme: light;\s*--text: #111;\s*\}", b); // only tokens with a dark value
+        Assert.True(b.IndexOf(".pm-dark", StringComparison.Ordinal) > b.IndexOf("@media", StringComparison.Ordinal));
+        Assert.Equal("<html class=\"pm-dark\"></html><div class=\"x pm-light\"></div><p></p>",
+            StaticHtml.Render(static () => Fragment(Html().Theme(ThemeMode.Dark), Div().Class("x").Theme(ThemeMode.Light), P().Theme(ThemeMode.Auto))));
+    }
 
     [Fact]
     public void Names_are_compile_time_constants_from_assembly_type_and_member()

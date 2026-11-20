@@ -55,6 +55,15 @@ public sealed class Rule
     /// <summary><c>.{ClassName}</c></summary>
     public string Selector => "." + ClassName;
 
+    /// <summary>
+    /// The class written when the rule is applied inside a preset, <c>{ClassName}-p</c>. The build writes the rule's declarations
+    /// under this name in <c>pm.preset</c> (its state blocks in <c>pm.preset-state</c>), and under <see cref="ClassName"/> in
+    /// <c>pm.local</c>, so a local rule on the same element beats a preset rule per property whatever the source order.
+    /// </summary>
+    public string PresetClassName => _presetName ??= ClassName + "-p";
+
+    private string? _presetName;
+
     /// <inheritdoc/>
     public override string ToString() => ClassName;
 }
@@ -104,7 +113,7 @@ public sealed class Token<T> : Var<T> where T : ICssValue<T>
 {
     internal Token(string name, CssValue light, CssValue? dark) : base(name, light) => Dark = dark;
 
-    /// <summary>The value under <c>prefers-color-scheme: dark</c> or <c>.theme-dark</c>, if different.</summary>
+    /// <summary>The value under <c>prefers-color-scheme: dark</c> or inside <c>.pm-dark</c>, if different.</summary>
     public CssValue? Dark { get; }
 }
 
@@ -164,7 +173,8 @@ public static class Css
 
     /// <summary>
     /// A token <c>--<paramref name="name"/></c> with a light and a dark value. The dark value applies under
-    /// <c>prefers-color-scheme: dark</c> unless <c>&lt;html&gt;</c> has <c>theme-light</c>, and always under <c>theme-dark</c>.
+    /// <c>prefers-color-scheme: dark</c> unless <c>&lt;html&gt;</c> has <c>pm-light</c>, and always inside an element with
+    /// <c>pm-dark</c> (<c>.Theme(ThemeMode.Dark)</c>); the light value applies inside <c>pm-light</c>.
     /// </summary>
     public static Token<T> Token<T>(string name, T light, T dark) where T : ICssValue<T> => new(TokenName(name), Value(light), Value(dark));
 

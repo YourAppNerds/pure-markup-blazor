@@ -23,7 +23,7 @@ public static class Preset
 /// preset's in any call order: attributes and parameters by name, inline styles by CSS property, events and children
 /// outright. Classes are additive: the preset's classes and the node's own all apply (<c>.ClassReplace</c> drops the preset's).
 /// </summary>
-public sealed class Preset<T> where T : struct
+public sealed class Preset<T> : IPreset where T : struct
 {
     private readonly Preset<T>? _base;
     private readonly Func<T, T> _build;
@@ -50,6 +50,11 @@ public sealed class Preset<T> where T : struct
             return Interlocked.CompareExchange(ref _data, d, null) ?? d;
         }
     }
+
+    /// <summary>Drops the recorded writes, so the next use records again (Hot Reload).</summary>
+    void IPreset.Reset() => Volatile.Write(ref _data, null);
+
+    PresetData IPreset.Data => Data;
 
     private PresetData Record()
     {
@@ -167,7 +172,14 @@ internal static class PresetTarget<T> where T : struct
     }
 }
 
-/// <summary>Presets by (base, lambda), so a property getter returns the same preset. M3b clears it on Hot Reload.</summary>
+/// <summary>A preset of any target type, for the build tool and Hot Reload.</summary>
+internal interface IPreset
+{
+    PresetData Data { get; }
+    void Reset();
+}
+
+/// <summary>Presets by (base, lambda), so a property getter returns the same preset. Cleared on Hot Reload.</summary>
 internal static class PresetCache
 {
     private static readonly ConcurrentDictionary<(object? Base, Delegate Build), object> Cache = new();
@@ -184,8 +196,18 @@ internal static class PresetCache
 
     private static bool IsCachedLambdaClass(Type t) => t.Name == "<>c" || t.Name.StartsWith("<>c`", StringComparison.Ordinal);
 
-    /// <summary>Every preset created so far (for the build tool's <c>pm.preset</c> layer in M3b).</summary>
+    /// <summary>Every preset created so far.</summary>
     internal static IEnumerable<object> All => Cache.Values;
+
+    /// <summary>
+    /// Forgets every preset and its recorded writes: getters create and record them again, and a preset kept in a static
+    /// field records again on its next use. Hot Reload calls this after a preset lambda is edited.
+    /// </summary>
+    internal static void Clear()
+    {
+        foreach (var p in Cache.Values) ((IPreset)p).Reset();
+        Cache.Clear();
+    }
 }
 
 /// <summary>
@@ -197,7 +219,7 @@ internal sealed class PresetData
     public AttrFrame[] Attrs = [];
     /// <summary>Name of the class attribute or parameter (<c>class</c>, or a component's <c>Class</c>).</summary>
     public string? ClassName;
-    /// <summary>The preset's classes (strings and rule classes), space-separated. Origin: preset (<c>pm.preset</c> in M3b).</summary>
+    /// <summary>The preset's classes (strings and rules' <see cref="Rule.PresetClassName"/>), space-separated.</summary>
     public string? Class;
     /// <summary>The rules among <see cref="Class"/>, for the build tool.</summary>
     public Rule[] Rules = [];
@@ -209,6 +231,8 @@ internal sealed class PresetData
     public Delegate[] Actions = [];
     /// <summary>Tag for <c>.New()</c>; null for <c>Element</c> and components.</summary>
     public string? Tag;
+    /// <summary>The preset this one was recorded on top of (<c>.With</c> base, or a <c>.Use</c> inside the lambda), if any.</summary>
+    public PresetData? Base;
 
     public static PresetData Compile(RenderArena a, Node node, string? tag)
     {
@@ -228,7 +252,7 @@ internal sealed class PresetData
             attrs.Add(at);
         }
 
-        var d = new PresetData { Attrs = [.. attrs], Tag = tag };
+        var d = new PresetData { Attrs = [.. attrs], Tag = tag, Base = b };
         foreach (var at in d.Attrs) if (at.Kind >= AttrKind.ElementRef) d.HasTrailing = true;
 
         var baseClass = f.ClassReplace ? null : b?.Class;

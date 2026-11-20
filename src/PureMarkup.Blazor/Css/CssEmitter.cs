@@ -13,40 +13,71 @@ public static class CssEmitter
     /// <summary>The layer order statement every generated file starts with.</summary>
     public const string LayerOrder = "@layer reset, vendor, pm.base, pm.preset, pm.local, pm.preset-state, pm.local-state, utilities;";
 
-    /// <summary>The stylesheet for all <c>[Stylesheet]</c> types in <paramref name="assembly"/>, ordered by full type name.</summary>
+    /// <summary>
+    /// The stylesheet for all <c>[Stylesheet]</c> types in <paramref name="assembly"/>, ordered by full type name, plus the
+    /// <c>pm.preset</c> copies of the rules its presets (static <c>Preset&lt;T&gt;</c> properties and fields of any type) apply.
+    /// </summary>
     [RequiresUnreferencedCode("Reads every type of the assembly by reflection; build-time only.")]
     public static string Emit(Assembly assembly)
     {
         Type[] types;
         try { types = assembly.GetTypes(); }
         catch (ReflectionTypeLoadException e) { types = e.Types.Where(t => t is not null).ToArray()!; }
-        return Emit(types.Where(t => t.IsDefined(typeof(StylesheetAttribute), false)));
+        return Emit(types.Where(t => t.IsDefined(typeof(StylesheetAttribute), false)), types.Where(t => !t.ContainsGenericParameters));
     }
 
     /// <summary>The stylesheet for the given <c>[Stylesheet]</c> types, ordered by full type name.</summary>
     [RequiresUnreferencedCode("Reads static members by reflection; build-time only.")]
-    public static string Emit(IEnumerable<Type> stylesheets)
+    public static string Emit(IEnumerable<Type> stylesheets) => Emit(stylesheets, []);
+
+    /// <summary>
+    /// The stylesheet for the given <c>[Stylesheet]</c> types, plus <c>pm.preset</c> copies of the rules applied by the static
+    /// <c>Preset&lt;T&gt;</c> members of <paramref name="presetTypes"/> (types by full name, members in declaration order;
+    /// a preset's base before the preset, so a derived preset's rules come later and win).
+    /// </summary>
+    [RequiresUnreferencedCode("Reads static members by reflection; build-time only.")]
+    public static string Emit(IEnumerable<Type> stylesheets, IEnumerable<Type> presetTypes)
     {
         var w = new Writer();
         foreach (var type in stylesheets.OrderBy(t => t.FullName, StringComparer.Ordinal))
-        {
-            const BindingFlags flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-            var members = type.GetFields(flags).Where(f => !f.Name.Contains('<')).Cast<MemberInfo>()
-                .Concat(type.GetProperties(flags).Where(p => p.GetIndexParameters().Length == 0))
-                .OrderBy(m => m is PropertyInfo p ? BackingOrder(type, p) : m.MetadataToken);
-            foreach (var m in members)
+            foreach (var m in StaticMembers(type))
+                if (Value(m) is { } value) w.Add(type.Name + "." + m.Name, value);
+
+        var presets = new List<(string Source, PresetData Data)>();
+        foreach (var type in presetTypes.OrderBy(t => t.FullName, StringComparer.Ordinal))
+            foreach (var m in StaticMembers(type))
             {
-                var value = m switch
+                var t = m is FieldInfo f ? f.FieldType : ((PropertyInfo)m).PropertyType;
+                if (!t.IsGenericType || t.GetGenericTypeDefinition() != typeof(Preset<>)) continue;
+                var source = type.Name + "." + m.Name;
+                try
                 {
-                    FieldInfo f => f.GetValue(null),
-                    PropertyInfo p when p.GetMethod is not null => p.GetValue(null),
-                    _ => null,
-                };
-                if (value is not null) w.Add(type.Name + "." + m.Name, value);
+                    if (Value(m) is IPreset p) presets.Add((source, p.Data));
+                }
+                catch (Exception e)
+                {
+                    var inner = e is TargetInvocationException { InnerException: { } ie } ? ie : e;
+                    throw new InvalidOperationException($"Preset {source} failed: {inner.Message}", inner);
+                }
             }
-        }
+        w.AddPresets(presets);
         return w.ToString();
     }
+
+    private const BindingFlags StaticFlags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+
+    [RequiresUnreferencedCode("Reads static members by reflection; build-time only.")]
+    private static IEnumerable<MemberInfo> StaticMembers(Type type) =>
+        type.GetFields(StaticFlags).Where(f => !f.Name.Contains('<')).Cast<MemberInfo>()
+            .Concat(type.GetProperties(StaticFlags).Where(p => p.GetIndexParameters().Length == 0 && p.GetMethod is not null))
+            .OrderBy(m => m is PropertyInfo p ? BackingOrder(type, p) : m.MetadataToken);
+
+    private static object? Value(MemberInfo m) => m switch
+    {
+        FieldInfo f => f.GetValue(null),
+        PropertyInfo p => p.GetValue(null),
+        _ => null,
+    };
 
     // Auto-properties sort by their backing field, so properties and fields keep declaration order together.
     private static int BackingOrder([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.NonPublicFields)] Type type, PropertyInfo p) =>
@@ -58,6 +89,8 @@ public static class CssEmitter
         private readonly StringBuilder _fonts = new();
         private readonly StringBuilder _root = new();
         private readonly StringBuilder _dark = new();
+        private readonly StringBuilder _light = new();
+        private readonly Dictionary<Rule, string> _ruleSources = new(ReferenceEqualityComparer.Instance);
         private readonly StringBuilder[] _layers = Enumerable.Range(0, 8).Select(_ => new StringBuilder()).ToArray();
         private readonly Dictionary<string, string> _names = new(StringComparer.Ordinal);
         private readonly HashSet<object> _seen = new(ReferenceEqualityComparer.Instance);
@@ -71,12 +104,17 @@ public static class CssEmitter
             {
                 case Rule r:
                     Claim(r.ClassName, source);
+                    _ruleSources[r] = source;
                     Block(source, r.Selector, CssLayer.Local, Run(r.Build));
                     break;
                 case ICssVariable v:
                     Claim(v.Name, source);
                     if (v.Initial is { } i) _root.Append("    ").Append(v.Name).Append(": ").Append(i.ToString()).AppendLine(";");
-                    if (v.Dark is { } dk) _dark.Append("    ").Append(v.Name).Append(": ").Append(dk.ToString()).AppendLine(";");
+                    if (v.Dark is { } dk)
+                    {
+                        _dark.Append("    ").Append(v.Name).Append(": ").Append(dk.ToString()).AppendLine(";");
+                        _light.Append("    ").Append(v.Name).Append(": ").Append(v.Initial?.ToString()).AppendLine(";");
+                    }
                     break;
                 case GlobalRule g:
                     Block(source, g.Selector, g.Layer, Run(g.Build));
@@ -89,6 +127,32 @@ public static class CssEmitter
                 case LayerImport imp:
                     _imports.Append("@import url(\"").Append(imp.Url).Append("\") layer(").Append(imp.Layer).AppendLine(");");
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Writes each preset rule once to <c>pm.preset</c> under its preset-origin class, bases first (depth-first), so a
+        /// <c>.With</c> preset's own rules follow its base's and win on equal specificity.
+        /// </summary>
+        public void AddPresets(List<(string Source, PresetData Data)> presets)
+        {
+            var names = new Dictionary<PresetData, string>(ReferenceEqualityComparer.Instance);
+            foreach (var (source, data) in presets) names.TryAdd(data, source);
+            var done = new HashSet<PresetData>(ReferenceEqualityComparer.Instance);
+            var rules = new HashSet<Rule>(ReferenceEqualityComparer.Instance);
+            foreach (var (_, data) in presets) Visit(data);
+
+            void Visit(PresetData d)
+            {
+                if (!done.Add(d)) return;
+                if (d.Base is { } b) Visit(b);
+                foreach (var r in d.Rules)
+                {
+                    if (!rules.Add(r)) continue;
+                    var preset = names.TryGetValue(d, out var n) ? n : "a preset";
+                    var rule = _ruleSources.TryGetValue(r, out var s) ? s : r.ClassName;
+                    Block(rule + " in " + preset, "." + r.PresetClassName, CssLayer.Preset, Run(r.Build));
+                }
             }
         }
 
@@ -180,8 +244,13 @@ public static class CssEmitter
             sb.Append(_fonts);
             if (_root.Length > 0)
             {
-                _layers[(int)CssLayer.Base].Insert(0, $"  :root {{\n{_root}  }}\n" + (_dark.Length == 0 ? "" :
-                    $"  @media (prefers-color-scheme: dark) {{\n    :root:not(.theme-light) {{\n{Indent(_dark)}    }}\n  }}\n  :root.theme-dark {{\n{_dark}  }}\n"));
+                // With dark values: the media query (unless <html> has pm-light), then pm-dark / pm-light on any element. Custom
+                // properties inherit and an element's own declaration beats an inherited one, so the nearest themed ancestor wins.
+                _layers[(int)CssLayer.Base].Insert(0, _dark.Length == 0 ? $"  :root {{\n{_root}  }}\n" :
+                    $"  :root {{\n    color-scheme: light dark;\n{_root}  }}\n" +
+                    $"  @media (prefers-color-scheme: dark) {{\n    :root:not(.{ThemeClass.Light}) {{\n{Indent(_dark)}    }}\n  }}\n" +
+                    $"  .{ThemeClass.Dark} {{\n    color-scheme: dark;\n{_dark}  }}\n" +
+                    $"  .{ThemeClass.Light} {{\n    color-scheme: light;\n{_light}  }}\n");
             }
             for (var i = 0; i < _layers.Length; i++)
             {

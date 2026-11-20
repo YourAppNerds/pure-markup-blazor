@@ -14,17 +14,23 @@
 }
 @layer pm.base {
   :root {
+    color-scheme: light dark;
     --TestCss_Progress-zylred: 0%;
     --text: #111;
     --gap: 1rem;
   }
   @media (prefers-color-scheme: dark) {
-    :root:not(.theme-light) {
+    :root:not(.pm-light) {
       --text: #eee;
     }
   }
-  :root.theme-dark {
+  .pm-dark {
+    color-scheme: dark;
     --text: #eee;
+  }
+  .pm-light {
+    color-scheme: light;
+    --text: #111;
   }
   /* TestTokens.Links */
   a, button {
@@ -32,6 +38,12 @@
   }
   a:hover, button:hover {
     text-decoration: underline;
+  }
+}
+@layer pm.preset {
+  /* TestCss.Badge in TestPresets.Primary */
+  .TestCss_Badge-hd8ctd-p {
+    border-radius: 4px;
   }
 }
 @layer pm.local {

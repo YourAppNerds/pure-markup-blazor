@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.RenderTree;
 using Microsoft.AspNetCore.Components.Web;
+using System.Reflection;
 using PureMarkup.Blazor.Rendering;
 
 namespace PureMarkup.Blazor.Tests;
@@ -80,14 +81,15 @@ public class PresetTests
         HtmlOut.Normalize(await HtmlOut.RenderAsync<Host>(new Dictionary<string, object?> { ["Build"] = build }));
 
     private static string Badge => TestCss.Badge.ClassName;
+    private static string BadgeP => TestCss.Badge.PresetClassName; // a rule applied in a preset writes its preset-origin class
 
     [Fact]
     public async Task Scalar_LocalWins_InEitherOrder()
     {
         // The preset's writes go at the .Use position; what the node sets itself replaces them.
-        Assert.Equal($"<button class=\"btn {Badge}\" style=\"margin-top: 4px; opacity: 1;\" title=\"primary\" type=\"submit\">x</button>",
+        Assert.Equal($"<button class=\"btn {BadgeP}\" style=\"margin-top: 4px; opacity: 1;\" title=\"primary\" type=\"submit\">x</button>",
             await Html(() => Button().Use(TestPresets.Primary).Type(ButtonType.Submit).Text("x")));
-        Assert.Equal($"<button type=\"submit\" class=\"btn {Badge}\" style=\"margin-top: 4px; opacity: 1;\" title=\"primary\">x</button>",
+        Assert.Equal($"<button type=\"submit\" class=\"btn {BadgeP}\" style=\"margin-top: 4px; opacity: 1;\" title=\"primary\">x</button>",
             await Html(() => Button().Type(ButtonType.Submit).Use(TestPresets.Primary).Text("x")));
     }
 
@@ -102,8 +104,8 @@ public class PresetTests
     [Fact]
     public async Task Class_IsAdditive_StringsAndRules_EitherOrder()
     {
-        Assert.Contains($"class=\"btn {Badge} wide {Badge}\"", await Html(() => Button().Use(TestPresets.Primary).Class("wide").Class(TestCss.Badge)));
-        Assert.Contains($"class=\"btn {Badge} wide\"", await Html(() => Button().Class("wide").Use(TestPresets.Primary)));
+        Assert.Contains($"class=\"btn {BadgeP} wide {Badge}\"", await Html(() => Button().Use(TestPresets.Primary).Class("wide").Class(TestCss.Badge)));
+        Assert.Contains($"class=\"btn {BadgeP} wide\"", await Html(() => Button().Class("wide").Use(TestPresets.Primary)));
     }
 
     [Fact]
@@ -145,7 +147,7 @@ public class PresetTests
     [Fact]
     public async Task With_BaseFirst_DerivedOverrides_New()
     {
-        Assert.Equal($"<button class=\"btn {Badge} danger\" style=\"margin-top: 4px; opacity: 1;\" title=\"primary\" type=\"reset\">Delete</button>",
+        Assert.Equal($"<button class=\"btn {BadgeP} danger\" style=\"margin-top: 4px; opacity: 1;\" title=\"primary\" type=\"reset\">Delete</button>",
             await Html(() => TestPresets.Danger.New().Text("Delete")));
         Assert.Same(TestPresets.Danger, TestPresets.Danger);
     }
@@ -174,9 +176,9 @@ public class PresetTests
     [Fact]
     public async Task ComponentParameters_Merge_LocalWins_ClassesAdd()
     {
-        Assert.Equal($"<span class=\"p {Badge} l\">P:2</span>", await Html(() => Comp<Badge>().Use(TestPresets.BigBadge).Size(2).Class("l")));
+        Assert.Equal($"<span class=\"p {BadgeP} l\">P:2</span>", await Html(() => Comp<Badge>().Use(TestPresets.BigBadge).Size(2).Class("l")));
         Assert.Equal($"<span class=\"l\">Q:1</span>", await Html(() => Comp<Badge>().Label("Q").ClassReplace("l").Use(TestPresets.BigBadge)));
-        Assert.Equal($"<span class=\"p {Badge}\">P:1</span>", await Html(() => TestPresets.BigBadge.New()));
+        Assert.Equal($"<span class=\"p {BadgeP}\">P:1</span>", await Html(() => TestPresets.BigBadge.New()));
     }
 
     [Fact]
@@ -225,7 +227,7 @@ public class PresetTests
     public void Static_HoldsPresets()
     {
         var html = StaticHtml.Render(static () => Div().Children(Button().Use(TestPresets.Danger).Type(ButtonType.Submit).Style(s => s.Opacity(0.5))));
-        Assert.Equal($"<div><button class=\"btn {Badge} danger\" title=\"primary\" type=\"submit\" style=\"margin-top: 4px; opacity: 0.5;\"></button></div>", html);
+        Assert.Equal($"<div><button class=\"btn {BadgeP} danger\" title=\"primary\" type=\"submit\" style=\"margin-top: 4px; opacity: 0.5;\"></button></div>", html);
     }
 
     [Fact]
@@ -233,8 +235,24 @@ public class PresetTests
     {
         var data = TestPresets.Danger.Data;
         Assert.Equal([TestCss.Badge], data.Rules);
-        Assert.Equal($"btn {Badge} danger", data.Class);
+        Assert.Equal($"btn {BadgeP} danger", data.Class);
         Assert.Empty(TestPresets.Replacing.Data.Rules);
+    }
+
+    [Fact]
+    public void HotReload_DropsPresetsAndTheirRecordedWrites()
+    {
+        var getter = TestPresets.Danger;
+        var data = getter.Data;
+        var kept = Preset.Once<ButtonElement>(static p => p.Class("kept")); // as a static field would hold it
+        var keptData = kept.Data;
+        typeof(Preset).Assembly.GetType("PureMarkup.Blazor.PresetHotReload")!.GetMethod("ClearCache")!.Invoke(null, [null]);
+        Assert.NotSame(getter, TestPresets.Danger);
+        Assert.NotSame(data, TestPresets.Danger.Data);
+        Assert.NotSame(keptData, kept.Data);
+        Assert.Equal(data.Class, TestPresets.Danger.Data.Class);
+        Assert.Contains(typeof(Preset).Assembly.GetCustomAttributes<System.Reflection.Metadata.MetadataUpdateHandlerAttribute>(),
+            a => a.HandlerType.Name == "PresetHotReload");
     }
 
     [Fact]

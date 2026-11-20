@@ -209,12 +209,15 @@ internal sealed class RenderArena
     /// <summary>Adds to the element's one <c>class</c> attribute (space-separated), so strings and rules are additive.</summary>
     internal void AddClass(Node n, string? value) => AddMerged(n, AttrKind.String, "class", value, ' ', isClass: true);
 
-    /// <summary>Adds a rule's class, remembering the rule while a preset records.</summary>
+    /// <summary>Adds a rule's class. While a preset records: the preset-origin class (<c>pm.preset</c>), and the rule is remembered.</summary>
     internal void AddClass(Node n, Styling.Rule rule, bool when = true)
     {
         if (when && Recording) (RecordedRules ??= []).Add(rule);
-        AddClass(n, when ? rule.ClassName : null);
+        AddClass(n, when ? RuleClass(rule) : null);
     }
+
+    /// <summary>The class to write for <paramref name="rule"/>: <see cref="Styling.Rule.PresetClassName"/> while a preset records.</summary>
+    internal string RuleClass(Styling.Rule rule) => Recording ? rule.PresetClassName : rule.ClassName;
 
     /// <summary>A component's class parameter (<c>class</c> unmatched attribute or a <c>Class</c> parameter): additive like an element's.</summary>
     internal void AddParamClass(Node n, string name, string? value) => AddMerged(n, AttrKind.Param, name, value, ' ', isClass: true);
