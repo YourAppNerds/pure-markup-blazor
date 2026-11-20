@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json.schemastore.org/dotnetcli.host",
+  "symbolInfo": {
+    "Framework": { "longName": "framework", "shortName": "f" },
+    "Interactivity": { "longName": "interactivity", "shortName": "int" },
+    "SampleContent": { "longName": "sample-content", "shortName": "" },
+    "skipRestore": { "longName": "no-restore", "shortName": "" },
+    "HttpPort": { "isHidden": true },
+    "HttpsPort": { "isHidden": true }
+  },
+  "usageExamples": [ "--interactivity Auto --sample-content" ]
+}

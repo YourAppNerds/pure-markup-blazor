@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="PureMarkupApp.Client/PureMarkupApp.Client.csproj" />
+  <Project Path="PureMarkupApp/PureMarkupApp.csproj" />
+</Solution>

@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "YAN-kyle",
+  "classifications": [ "Web", "Blazor", "WebAssembly", "PureMarkup" ],
+  "identity": "PureMarkup.Blazor.WebApp.CSharp",
+  "groupIdentity": "PureMarkup.Blazor.WebApp",
+  "name": "PureMarkup Blazor Web App",
+  "description": "A Blazor Web App written in C# markup with PureMarkup.Blazor: components, layout and styles in C#, no .razor or .html files.",
+  "shortName": "puremarkup-blazor",
+  "defaultName": "PureMarkupApp",
+  "sourceName": "PureMarkupApp",
+  "precedence": "100",
+  "generatorVersions": "[1.0.0.0-*)",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "symbols": {
+    "Framework": {
+      "type": "parameter",
+      "description": "The target framework for the project.",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "net10.0", "description": "Target net10.0" },
+        { "choice": "net11.0", "description": "Target net11.0 (untested: needs the .NET 11 SDK)" }
+      ],
+      "replaces": "net10.0",
+      "defaultValue": "net10.0"
+    },
+    "Interactivity": {
+      "type": "parameter",
+      "description": "Interactive render mode used by the sample Counter page; None gives a static server-rendered app.",
+      "datatype": "choice",
+      "choices": [
+        { "choice": "None", "description": "No interactivity (static server rendering only)" },
+        { "choice": "Server", "description": "Runs on the server" },
+        { "choice": "WebAssembly", "description": "Runs in the browser using WebAssembly (adds a .Client project)" },
+        { "choice": "Auto", "description": "Server first, then WebAssembly once it is downloaded (adds a .Client project)" }
+      ],
+      "defaultValue": "Server"
+    },
+    "SampleContent": {
+      "type": "parameter",
+      "datatype": "bool",
+      "description": "Adds the Counter (interactive modes) and Weather pages, as the stock blazor template does.",
+      "defaultValue": "false"
+    },
+    "skipRestore": {
+      "type": "parameter",
+      "datatype": "bool",
+      "description": "If specified, skips the automatic restore of the project on create.",
+      "defaultValue": "false"
+    },
+    "UseServer": {
+      "type": "computed",
+      "value": "(Interactivity == \"Server\" || Interactivity == \"Auto\")"
+    },
+    "UseWebAssembly": {
+      "type": "computed",
+      "value": "(Interactivity == \"WebAssembly\" || Interactivity == \"Auto\")"
+    },
+    "IsNet11": {
+      "type": "computed",
+      "value": "(Framework == \"net11.0\")"
+    },
+    "HttpPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 5000, "high": 5300 },
+      "replaces": "5191"
+    },
+    "HttpsPort": {
+      "type": "generated",
+      "generator": "port",
+      "parameters": { "low": 7000, "high": 7300 },
+      "replaces": "7191"
+    }
+  },
+  "sources": [
+    {
+      "source": "./PureMarkupApp/",
+      "target": "./",
+      "condition": "(!UseWebAssembly)",
+      "modifiers": [
+        { "condition": "(!SampleContent)", "exclude": [ "Components/Pages/Weather.cs", "Components/Pages/Counter.cs" ] },
+        { "condition": "(!UseServer)", "exclude": [ "Components/Pages/Counter.cs" ] }
+      ]
+    },
+    {
+      "source": "./Theme/",
+      "target": "./Theme/",
+      "condition": "(!UseWebAssembly)"
+    },
+    {
+      "source": "./PureMarkupApp/",
+      "target": "./PureMarkupApp/",
+      "condition": "(UseWebAssembly)",
+      "modifiers": [
+        { "exclude": [ "Components/Pages/Counter.cs" ] },
+        { "condition": "(!SampleContent)", "exclude": [ "Components/Pages/Weather.cs" ] }
+      ]
+    },
+    {
+      "source": "./PureMarkupApp.Client/",
+      "target": "./PureMarkupApp.Client/",
+      "condition": "(UseWebAssembly)",
+      "modifiers": [
+        { "condition": "(!SampleContent)", "exclude": [ "Pages/**" ] }
+      ]
+    },
+    {
+      "source": "./Theme/",
+      "target": "./PureMarkupApp.Client/Theme/",
+      "condition": "(UseWebAssembly)"
+    },
+    {
+      "source": "./",
+      "target": "./",
+      "include": [ "PureMarkupApp.slnx" ],
+      "condition": "(UseWebAssembly)"
+    }
+  ],
+  "primaryOutputs": [
+    { "path": "PureMarkupApp.csproj", "condition": "(!UseWebAssembly)" },
+    { "path": "PureMarkupApp/PureMarkupApp.csproj", "condition": "(UseWebAssembly)" },
+    { "path": "PureMarkupApp.Client/PureMarkupApp.Client.csproj", "condition": "(UseWebAssembly)" }
+  ],
+  "postActions": [
+    {
+      "id": "restore",
+      "condition": "(!skipRestore)",
+      "description": "Restore NuGet packages required by this project.",
+      "manualInstructions": [ { "text": "Run 'dotnet restore'" } ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

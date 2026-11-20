@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json.schemastore.org/ide.host",
+  "order": 0,
+  "symbolInfo": [
+    { "id": "Interactivity", "name": { "text": "Interactive render mode" }, "isVisible": true },
+    { "id": "route", "name": { "text": "Route" }, "isVisible": true }
+  ]
+}

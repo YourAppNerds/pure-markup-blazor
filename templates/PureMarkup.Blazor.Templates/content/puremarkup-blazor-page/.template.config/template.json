@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "YAN-kyle",
+  "classifications": [ "Web", "Blazor", "PureMarkup" ],
+  "identity": "PureMarkup.Blazor.Page.CSharp",
+  "groupIdentity": "PureMarkup.Blazor.Page",
+  "name": "PureMarkup Blazor Page",
+  "description": "A routable Blazor page written in C# markup (a MarkupComponent class), for projects that use PureMarkup.Blazor.",
+  "shortName": "puremarkup-blazor-page",
+  "defaultName": "Page1",
+  "sourceName": "PageName",
+  "precedence": "100",
+  "generatorVersions": "[1.0.0.0-*)",
+  "preferNameDirectory": false,
+  "tags": {
+    "language": "C#",
+    "type": "item"
+  },
+  "symbols": {
+    "namespace": {
+      "type": "parameter",
+      "datatype": "string",
+      "description": "Namespace for the page. Defaults to the root namespace of the (restored) project in the output folder, else Pages."
+    },
+    "RootNamespace": {
+      "type": "bind",
+      "binding": "msbuild:RootNamespace",
+      "defaultValue": "Pages"
+    },
+    "Namespace": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": { "sourceVariableName": "namespace", "fallbackVariableName": "RootNamespace" },
+      "replaces": "PureMarkupApp.Pages"
+    },
+    "route": {
+      "type": "parameter",
+      "datatype": "string",
+      "description": "The page's route. Defaults to /<name in lower case>."
+    },
+    "LowerName": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": { "source": "name", "toLower": true }
+    },
+    "DefaultRoute": {
+      "type": "generated",
+      "generator": "join",
+      "parameters": {
+        "symbols": [ { "type": "const", "value": "/" }, { "type": "ref", "value": "LowerName" } ],
+        "separator": ""
+      }
+    },
+    "Route": {
+      "type": "generated",
+      "generator": "coalesce",
+      "parameters": { "sourceVariableName": "route", "fallbackVariableName": "DefaultRoute" },
+      "replaces": "/route-token"
+    },
+    "Interactivity": {
+      "type": "parameter",
+      "datatype": "choice",
+      "description": "Interactive render mode of the page.",
+      "choices": [
+        { "choice": "None", "description": "Static server rendering" },
+        { "choice": "Server", "description": "[InteractiveServer]" },
+        { "choice": "WebAssembly", "description": "[InteractiveWebAssembly] (the page must live in the .Client project)" },
+        { "choice": "Auto", "description": "[InteractiveAuto] (the page must live in the .Client project)" }
+      ],
+      "defaultValue": "None"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    dotnet new templates: puremarkup-blazor (Blazor Web App, no .razor files) and puremarkup-blazor-page (a page).
+    content/ is copied into the package as-is; it is not compiled here (scripts/verify-template.mjs instantiates and builds it).
+  -->
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageId>PureMarkup.Blazor.Templates</PackageId>
+    <Title>PureMarkup.Blazor templates</Title>
+    <Description>dotnet new templates for Blazor Web Apps written in C# markup with PureMarkup.Blazor: no .razor or .html files.</Description>
+    <PackageTags>dotnet-new;templates;blazor;puremarkup</PackageTags>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <!-- Microsoft.TemplateEngine.Authoring.Tasks: validates template.json on pack; no localization files. -->
+    <EnableTemplateValidation>true</EnableTemplateValidation>
+    <LocalizeTemplates>false</LocalizeTemplates>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.TemplateEngine.Authoring.Tasks" PrivateAssets="all" />
+    <Content Include="content\**\*" Exclude="content\**\bin\**;content\**\obj\**" />
+  </ItemGroup>
+
+  <!-- The generated projects reference PureMarkup.Blazor at the version packed alongside (one version for both packages). -->
+  <Target Name="_PureMarkupCheckTemplateVersion" BeforeTargets="Build;GenerateNuspec">
+    <ItemGroup>
+      <_PmTemplateProject Include="content\**\*.csproj" />
+    </ItemGroup>
+    <Error Condition="!$([System.IO.File]::ReadAllText('%(_PmTemplateProject.FullPath)').Contains('Include=&quot;PureMarkup.Blazor&quot; Version=&quot;$(PackageVersion)&quot;'))"
+           Text="%(_PmTemplateProject.Identity) must reference PureMarkup.Blazor Version=&quot;$(PackageVersion)&quot;." />
+  </Target>
+</Project>
