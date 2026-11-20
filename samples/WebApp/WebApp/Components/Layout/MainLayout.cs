@@ -12,6 +12,7 @@ public sealed class MainLayout : MarkupLayout
         ("counter-auto", "Auto"),
         ("list", "List"),
         ("grid", "Grid"),
+        ("cascade", "Cascade"),
     ];
 
     protected override Node Render() => Fragment(

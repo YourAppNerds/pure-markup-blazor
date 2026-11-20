@@ -27,6 +27,37 @@ await page.click('#submit');
 await page.waitForSelector('#greeting');
 check((await page.textContent('#greeting')) === 'Hello, Kyle!', 'SSR form post binds [SupplyParameterFromForm]');
 
+// Preset and local layers (CascadePage): computed styles decide, since layer order beats specificity and source order.
+await page.goto(base + '/cascade');
+const color = sel => page.$eval(sel, e => getComputedStyle(e).color);
+const [red, blue, green, orange, purple] = ['rgb(255, 0, 0)', 'rgb(0, 0, 255)', 'rgb(0, 128, 0)', 'rgb(255, 165, 0)', 'rgb(128, 0, 128)'];
+check((await page.getAttribute('#preset-vs-local', 'class')).split(' ').some(c => /^CascadeCss_Shared-[a-z0-9]{6}-p$/.test(c)), 'a rule applied in a preset writes its preset-origin class ({name}-p)');
+check((await color('#shared-local')) === red, 'the shared rule applies locally (red)');
+check((await color('#preset-vs-local')) === blue, 'local base beats preset base, though the shared rule is declared later and also used locally');
+check((await color('#preset-hover')) === blue, 'local base value before hover');
+await page.hover('#preset-hover');
+check((await color('#preset-hover')) === orange, 'preset :hover (pm.preset-state) beats local base value');
+check((await color('#local-hover')) === red, 'preset base value before hover');
+await page.hover('#local-hover');
+check((await color('#local-hover')) === green, 'local :hover (pm.local-state) beats preset :hover');
+await page.mouse.move(0, 0);
+check((await color('#derived')) === purple, '.With derived rule beats its base rule (base written first in pm.preset)');
+check((await color('#inline')) === 'rgb(1, 2, 3)', 'inline .Style beats preset and local rules');
+
+// Theme: tokens follow prefers-color-scheme, the pm-dark / pm-light classes override it, with no re-render.
+const surface = sel => page.$eval(sel, e => getComputedStyle(e).backgroundColor);
+const [light, dark] = ['rgb(255, 255, 255)', 'rgb(27, 27, 31)'];
+check((await surface('body')) === light, 'light token value by default');
+check((await surface('#dark-panel')) === dark, '.Theme(ThemeMode.Dark) pins a dark subtree in a light page');
+await page.evaluate(() => document.documentElement.classList.add('pm-dark'));
+check((await surface('body')) === dark, 'pm-dark on <html> flips the token');
+await page.evaluate(() => document.documentElement.classList.remove('pm-dark'));
+await page.emulateMedia({ colorScheme: 'dark' });
+check((await surface('body')) === dark, 'prefers-color-scheme: dark flips the token without a class');
+await page.evaluate(() => document.documentElement.classList.add('pm-light'));
+check((await surface('body')) === light, 'pm-light on <html> overrides prefers-color-scheme: dark');
+await page.emulateMedia({ colorScheme: 'light' });
+
 async function counter(path, renderer) {
   await page.goto(base + path);
   await page.waitForFunction(r => document.querySelector('#renderer')?.textContent.includes(`Renderer: ${r}; interactive: True`), renderer, { timeout: 30000 });
@@ -94,7 +125,7 @@ await page.hover('#inc');
 // Waits out the 150ms transition.
 await page.waitForFunction(() => getComputedStyle(document.querySelector('#inc')).backgroundColor === 'rgb(29, 78, 216)', null, { timeout: 5000 });
 const after = await bg();
-check(before === 'rgb(37, 99, 235)' && after === 'rgb(29, 78, 216)', `hover rule from pm.local-state applies (${before} -> ${after})`);
+check(before === 'rgb(37, 99, 235)' && after === 'rgb(29, 78, 216)', `preset rule's hover from pm.preset-state applies (${before} -> ${after})`);
 await page.mouse.move(0, 0);
 await page.click('#inc');
 await page.waitForFunction(() => document.querySelector('#bar').getAttribute('style')?.includes(': 10%'));
