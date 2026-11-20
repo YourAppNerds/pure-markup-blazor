@@ -4,6 +4,8 @@
 //   2. instantiates every --interactivity mode, with and without --sample-content, builds and runs each, and checks
 //      /, /_framework/blazor.web.js and every linked .pm.css (200), a 404 page, and that the output has no .razor/.html;
 //      interactive modes with sample content: Playwright clicks Counter and waits for the count to change;
+//      --all-interactive cases: the render mode sits on Routes/HeadOutlet in App.cs, no page has its own, and with
+//      WebAssembly/Auto the routes, layout and pages are in the .Client project;
 //   3. adds pages with the item template (puremarkup-blazor-page) and checks they compile and route.
 // Usage: node scripts/verify-template.mjs [--scratch <dir>] [--only <case>,...] [--no-pack]
 // Needs the .NET 10 SDK and Playwright (cd samples/WebApp && npm ci && npx playwright install chromium).
@@ -32,6 +34,10 @@ const cases = [
   { name: 'ServerSample', interactivity: 'Server', sample: true },
   { name: 'WasmSample', interactivity: 'WebAssembly', sample: true },
   { name: 'AutoSample', interactivity: 'Auto', sample: true },
+  { name: 'AutoGlobal', interactivity: 'Auto', global: true },
+  { name: 'ServerGlobalSample', interactivity: 'Server', sample: true, global: true },
+  { name: 'WasmGlobalSample', interactivity: 'WebAssembly', sample: true, global: true },
+  { name: 'AutoGlobalSample', interactivity: 'Auto', sample: true, global: true },
 ].filter(c => !only || only.includes(c.name));
 
 const env = { ...process.env, NUGET_PACKAGES: path.join(scratch, 'nuget-packages'), DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_NOLOGO: '1' };
@@ -117,7 +123,7 @@ const browser = await chromium.launch();
 
 try {
   for (const c of cases) {
-    console.log(`\n${c.name}: --interactivity ${c.interactivity}${c.sample ? ' --sample-content' : ''}`);
+    console.log(`\n${c.name}: --interactivity ${c.interactivity}${c.sample ? ' --sample-content' : ''}${c.global ? ' --all-interactive' : ''}`);
     try {
       await verifyCase(c);
     } catch (e) {
@@ -135,6 +141,7 @@ async function verifyCase(c) {
   const out = path.join(scratch, name);
   const newArgs = ['new', 'puremarkup-blazor', '-o', out, '-n', name, '--interactivity', c.interactivity, '--no-restore', '--debug:custom-hive', hive];
   if (c.sample) newArgs.push('--sample-content');
+  if (c.global) newArgs.push('--all-interactive');
   run('dotnet', newArgs, scratch);
 
   const hasClient = c.interactivity === 'WebAssembly' || c.interactivity === 'Auto';
@@ -144,6 +151,24 @@ async function verifyCase(c) {
   check(fs.existsSync(path.join(out, `${name}.Client`)) === hasClient, `.Client project ${hasClient ? 'present' : 'absent'}`);
   const counter = files.find(f => /Counter\.cs$/.test(f));
   check(!!counter === !!(c.sample && c.interactivity !== 'None'), `Counter page ${counter ?? 'absent'}`);
+  const read = f => fs.readFileSync(path.join(out, f), 'utf8');
+  const inClient = f => f.startsWith(`${name}.Client${path.sep}`);
+  if (counter) {
+    check(inClient(counter) === hasClient, `Counter in the ${hasClient ? '.Client' : 'server'} project`);
+    const mode = { Server: 'InteractiveServer', WebAssembly: 'InteractiveWebAssembly', Auto: 'InteractiveAuto' }[c.interactivity];
+    const attrs = read(counter).match(/\[Interactive\w+\]/g) ?? [];
+    check(c.global ? attrs.length === 0 : attrs.join() === `[${mode}]`, `Counter render mode: ${attrs.join() || 'none (global)'}`);
+  }
+  if (c.global) {
+    const app = files.find(f => path.basename(f) === 'App.cs');
+    check(!inClient(app) && (read(app).match(/\.RenderMode\(Mode\)/g) ?? []).length === 2, 'App.cs: render mode on Routes and HeadOutlet');
+    check(!files.some(f => f.endsWith('.cs') && /\[Interactive\w+\]/.test(read(f))), 'no page-level render-mode attribute');
+    for (const f of ['Routes.cs', 'MainLayout.cs', 'NavMenu.cs', 'Home.cs', 'NotFound.cs']) {
+      const at = files.filter(x => path.basename(x) === f);
+      check(at.length === 1 && inClient(at[0]) === hasClient, `${f} in the ${hasClient ? '.Client' : 'server'} project`);
+    }
+    check(!inClient(files.find(f => path.basename(f) === 'Error.cs')), 'Error.cs stays in the server project');
+  }
 
   // 3. Item template: one page with an explicit namespace and render mode, one from the project's root namespace.
   if (c.pages) {
