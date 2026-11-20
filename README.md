@@ -176,8 +176,23 @@ Comp<InputText>().Use(AppPresets.Field).Bind(() => Model.Name)
   on a child inside another preset) is not scanned: its rules have no `-p` copy. Rules in a dependency's preset are written by
   that dependency's own build.
 - Hot Reload: a `[MetadataUpdateHandler]` clears the preset cache and every preset's recorded writes, so an edited preset lambda
-  applies on the re-render that follows (static-field presets record again too). The `.pm.css` file is not rewritten: an edited
-  rule body, or a rule newly used in a preset (no `-p` copy yet), needs a rebuild (CSS Hot Reload is the M4 spike).
+  applies on the re-render that follows (static-field presets record again too). Then the stylesheets are rewritten (see Hot Reload).
+
+## Hot Reload
+Under `dotnet watch`, an edited rule body (`Css.Rule(r => ...)`; `Css.Global` and `Css.FontFace` bodies work the same way) or
+preset lambda (a rule newly used in a preset gets its `-p` copy) shows up in the browser without a restart. Checked in the
+sample: static SSR and WebAssembly pages, server and `.Client` stylesheets.
+- How: a Debug build (`Optimize` not `true`) records the path of `obj/.../pmcss/{Assembly}.pm.css` as
+  `[AssemblyMetadata("PureMarkup.Blazor.CssFile", ...)]`. After each update the handler re-evaluates the stylesheets of every loaded
+  assembly with a recorded path in-process (an edited lambda runs its new body) and rewrites the file if it changed. The file is a
+  static web asset, so `dotnet watch` pushes it to the browser, which reloads its stylesheet links; the dev server serves the new
+  content at the same fingerprinted URL. Class names do not change, so the markup stays valid.
+- WebAssembly: the browser cannot write the file; the server process loads the `.Client` assembly too, gets the same update and
+  rewrites the `.Client` stylesheet.
+- Release: no path is recorded, so the handler does nothing (and trimmed apps drop it). `PureMarkupCssHotReload=false` turns it off.
+- Needs a restart (Ctrl+R in `dotnet watch`) or a rebuild: a new `Rule`/`Var`/`Token` member (Hot Reload does not run a new static
+  initializer, so the member is `null`) and a renamed member (new class name); a new `[Stylesheet]` class is untested. Without
+  `dotnet watch` (plain `dotnet run`), rebuild as before. A rule body that throws logs to stderr and leaves the file as it was.
 
 ## How it renders
 `Render()` builds a tree of struct handles in per-render pooled arrays, which is then written to the `RenderTreeBuilder`.
