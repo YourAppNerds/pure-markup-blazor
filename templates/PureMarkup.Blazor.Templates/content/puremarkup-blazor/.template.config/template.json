@@ -30,7 +30,7 @@
     },
     "Interactivity": {
       "type": "parameter",
-      "description": "Interactive render mode used by the sample Counter page; None gives a static server-rendered app.",
+      "description": "Interactive render mode: of the Counter page, or of every page with --all-interactive; None gives a static server-rendered app.",
       "datatype": "choice",
       "choices": [
         { "choice": "None", "description": "No interactivity (static server rendering only)" },
@@ -39,6 +39,12 @@
         { "choice": "Auto", "description": "Server first, then WebAssembly once it is downloaded (adds a .Client project)" }
       ],
       "defaultValue": "Server"
+    },
+    "AllInteractive": {
+      "type": "parameter",
+      "datatype": "bool",
+      "description": "Makes every page interactive: the render mode is set once, on Routes and HeadOutlet in App.cs, instead of per page. With WebAssembly or Auto the routes, layout and pages move to the .Client project. Ignored when Interactivity is None.",
+      "defaultValue": "false"
     },
     "SampleContent": {
       "type": "parameter",
@@ -59,6 +65,14 @@
     "UseWebAssembly": {
       "type": "computed",
       "value": "(Interactivity == \"WebAssembly\" || Interactivity == \"Auto\")"
+    },
+    "GlobalInteractive": {
+      "type": "computed",
+      "value": "(AllInteractive && Interactivity != \"None\")"
+    },
+    "GlobalClient": {
+      "type": "computed",
+      "value": "(AllInteractive && (Interactivity == \"WebAssembly\" || Interactivity == \"Auto\"))"
     },
     "IsNet11": {
       "type": "computed",
@@ -98,15 +112,31 @@
       "condition": "(UseWebAssembly)",
       "modifiers": [
         { "exclude": [ "Components/Pages/Counter.cs" ] },
-        { "condition": "(!SampleContent)", "exclude": [ "Components/Pages/Weather.cs" ] }
+        { "condition": "(!SampleContent)", "exclude": [ "Components/Pages/Weather.cs" ] },
+        {
+          "condition": "(GlobalClient)",
+          "exclude": [ "Components/Routes.cs", "Components/Layout/**", "Components/Pages/Home.cs", "Components/Pages/NotFound.cs", "Components/Pages/Weather.cs" ]
+        }
       ]
     },
     {
       "source": "./PureMarkupApp.Client/",
       "target": "./PureMarkupApp.Client/",
-      "condition": "(UseWebAssembly)",
+      "condition": "(UseWebAssembly)"
+    },
+    {
+      "source": "./PureMarkupApp/Components/Pages/",
+      "target": "./PureMarkupApp.Client/Pages/",
+      "include": [ "Counter.cs" ],
+      "condition": "(UseWebAssembly && SampleContent)"
+    },
+    {
+      "source": "./PureMarkupApp/Components/",
+      "target": "./PureMarkupApp.Client/",
+      "include": [ "Routes.cs", "Layout/**", "Pages/Home.cs", "Pages/NotFound.cs", "Pages/Weather.cs" ],
+      "condition": "(GlobalClient)",
       "modifiers": [
-        { "condition": "(!SampleContent)", "exclude": [ "Pages/**" ] }
+        { "condition": "(!SampleContent)", "exclude": [ "Pages/Weather.cs" ] }
       ]
     },
     {

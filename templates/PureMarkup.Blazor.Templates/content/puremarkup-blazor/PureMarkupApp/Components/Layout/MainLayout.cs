@@ -1,4 +1,8 @@
+#if (GlobalClient)
+namespace PureMarkupApp.Client.Layout;
+#else
 namespace PureMarkupApp.Components.Layout;
+#endif
 
 public sealed class MainLayout : MarkupLayout
 {

@@ -3,10 +3,11 @@
   "symbolInfo": {
     "Framework": { "longName": "framework", "shortName": "f" },
     "Interactivity": { "longName": "interactivity", "shortName": "int" },
+    "AllInteractive": { "longName": "all-interactive", "shortName": "ai" },
     "SampleContent": { "longName": "sample-content", "shortName": "" },
     "skipRestore": { "longName": "no-restore", "shortName": "" },
     "HttpPort": { "isHidden": true },
     "HttpsPort": { "isHidden": true }
   },
-  "usageExamples": [ "--interactivity Auto --sample-content" ]
+  "usageExamples": [ "--interactivity Auto --sample-content", "--interactivity Auto --all-interactive" ]
 }

@@ -1,7 +1,19 @@
+#if (UseWebAssembly)
+namespace PureMarkupApp.Client.Pages;
+#else
 namespace PureMarkupApp.Components.Pages;
+#endif
 
 [Route("/counter")]
+#if (GlobalInteractive)
+// No render mode of its own: App renders Routes interactively (--all-interactive).
+#elif (Interactivity == "Server")
 [InteractiveServer]
+#elif (Interactivity == "WebAssembly")
+[InteractiveWebAssembly]
+#elif (Interactivity == "Auto")
+[InteractiveAuto]
+#endif
 public sealed class Counter : MarkupComponent
 {
     private int currentCount;

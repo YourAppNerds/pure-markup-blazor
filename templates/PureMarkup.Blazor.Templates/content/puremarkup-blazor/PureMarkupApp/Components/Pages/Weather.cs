@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Components.Web;
 
+#if (GlobalClient)
+namespace PureMarkupApp.Client.Pages;
+#else
 namespace PureMarkupApp.Components.Pages;
+#endif
 
 [Route("/weather")]
 [StreamRendering]

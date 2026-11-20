@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Components.Routing;
 
+#if (GlobalClient)
+namespace PureMarkupApp.Client.Layout;
+#else
 namespace PureMarkupApp.Components.Layout;
+#endif
 
 public sealed class NavMenu : MarkupComponent
 {

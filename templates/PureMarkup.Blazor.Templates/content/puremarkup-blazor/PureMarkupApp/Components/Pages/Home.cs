@@ -1,4 +1,8 @@
+#if (GlobalClient)
+namespace PureMarkupApp.Client.Pages;
+#else
 namespace PureMarkupApp.Components.Pages;
+#endif
 
 [Route("/")]
 public sealed class Home : MarkupComponent

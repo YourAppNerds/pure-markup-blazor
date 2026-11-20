@@ -3,6 +3,7 @@
   "order": 0,
   "symbolInfo": [
     { "id": "Interactivity", "name": { "text": "Interactive render mode" }, "isVisible": true },
+    { "id": "AllInteractive", "name": { "text": "Enable interactive rendering globally throughout the site" }, "isVisible": true, "isEnabled": "(Interactivity != \"None\")" },
     { "id": "SampleContent", "name": { "text": "Include sample pages" }, "isVisible": true }
   ]
 }

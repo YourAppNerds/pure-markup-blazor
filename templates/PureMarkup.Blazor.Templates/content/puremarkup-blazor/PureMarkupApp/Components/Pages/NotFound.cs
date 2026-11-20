@@ -1,6 +1,12 @@
+#if (GlobalClient)
+using PureMarkupApp.Client.Layout;
+
+namespace PureMarkupApp.Client.Pages;
+#else
 using PureMarkupApp.Components.Layout;
 
 namespace PureMarkupApp.Components.Pages;
+#endif
 
 [Route("/not-found")]
 [Layout(typeof(MainLayout))]
