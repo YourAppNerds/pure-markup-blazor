@@ -14,4 +14,27 @@
     <Compile Include="../PureMarkup.Blazor/Css/CssNames.cs" Link="CssNames.cs" />
     <InternalsVisibleTo Include="PureMarkup.Blazor.Tests" />
   </ItemGroup>
+
+  <!-- PMCSS020 property names: the prop, alias and descriptors lines of css.data, embedded (the keyword lines stay out). -->
+  <Target Name="_PmCssNamesPaths">
+    <PropertyGroup>
+      <_PmCssData>$(MSBuildThisFileDirectory)../PureMarkup.Blazor/Css/css.data</_PmCssData>
+      <_PmCssNames>$(IntermediateOutputPath)css.names</_PmCssNames>
+    </PropertyGroup>
+  </Target>
+  <Target Name="_PmCssNames" DependsOnTargets="_PmCssNamesPaths" Inputs="$(_PmCssData)" Outputs="$(_PmCssNames)">
+    <ReadLinesFromFile File="$(_PmCssData)">
+      <Output TaskParameter="Lines" ItemName="_PmCssLine" />
+    </ReadLinesFromFile>
+    <ItemGroup>
+      <_PmCssName Include="@(_PmCssLine)" Condition="$([System.String]::new('%(Identity)').StartsWith('prop ')) Or $([System.String]::new('%(Identity)').StartsWith('alias ')) Or $([System.String]::new('%(Identity)').StartsWith('descriptors '))" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(_PmCssNames)" Lines="@(_PmCssName)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+  <Target Name="_PmCssNamesResource" BeforeTargets="AssignTargetPaths" DependsOnTargets="_PmCssNamesPaths;_PmCssNames">
+    <ItemGroup>
+      <EmbeddedResource Include="$(_PmCssNames)" LogicalName="PureMarkup.Blazor.Generators.css.names" />
+      <FileWrites Include="$(_PmCssNames)" />
+    </ItemGroup>
+  </Target>
 </Project>
