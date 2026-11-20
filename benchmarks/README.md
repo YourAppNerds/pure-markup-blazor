@@ -38,3 +38,12 @@ machine's noise: in the same 15-iteration run, `Page200` `MarkupRules` (identica
 - The page gap is frame count: Razor folds static HTML into markup frames at compile time. `Static(...)` recovers it by hand;
   a generator pass that folds constant subtrees into `H.Markup(...)` is the planned fix.
 - Not measured: WebAssembly (interpreter, AOT).
+
+## Presets (2026-11-19, M3a)
+`MarkupPresets` is `MarkupRules` with `.Use(preset)` on the score cell and the mail link (2,000 `.Use` per render). ShortRun:
+
+| Table 1,000 rows | Markup | MarkupRules | MarkupPresets |
+|---|--:|--:|--:|
+| Re-render | 490 us | 489 us | 491 us |
+| BuildRenderTree only | 247 us | 315 us | 310 us |
+| Alloc per re-render | 293.81 KB | 293.81 KB | 293.81 KB |

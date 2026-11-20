@@ -55,7 +55,7 @@ namespace Bench
     [ShortRunJob]
     public class RenderBenchmarks
     {
-        public enum Kind { Razor, Markup, MarkupStatic, MarkupRules }
+        public enum Kind { Razor, Markup, MarkupStatic, MarkupRules, MarkupPresets }
 
         [ParamsAllValues] public Kind Impl;
         [Params("Table1000", "Page200")] public string Case = "";
@@ -67,6 +67,8 @@ namespace Bench
         {
             ("Table1000", Kind.Razor) => new Table1000(),
             ("Table1000", Kind.MarkupRules) => new MarkupTable1000Rules(),
+            ("Table1000", Kind.MarkupPresets) => new MarkupTable1000Presets(),
+            ("Page200", Kind.MarkupPresets) => new MarkupPage200(), // no presets variant; same as Markup
             ("Page200", Kind.MarkupRules) => new MarkupPage200(), // no rules variant; same as Markup
             ("Table1000", _) => new MarkupTable1000(),
             ("Page200", Kind.Razor) => new Page200(),
@@ -115,7 +117,7 @@ namespace Bench
                 foreach (var k in Enum.GetValues<RenderBenchmarks.Kind>())
                 {
                     if (c == "Table1000" && k == RenderBenchmarks.Kind.MarkupStatic) continue;
-                    if (k == RenderBenchmarks.Kind.MarkupRules) continue; // class names differ from Razor's by design
+                    if (k is RenderBenchmarks.Kind.MarkupRules or RenderBenchmarks.Kind.MarkupPresets) continue; // class names differ from Razor's by design
                     var type = RenderBenchmarks.Create(c, k).GetType();
                     var output = html.Dispatcher.InvokeAsync(async () =>
                         (await html.RenderComponentAsync(type, ParameterView.Empty)).ToHtmlString()).GetAwaiter().GetResult();
