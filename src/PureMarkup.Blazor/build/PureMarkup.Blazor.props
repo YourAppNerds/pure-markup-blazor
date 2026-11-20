@@ -1,0 +1,6 @@
+<Project>
+  <!-- Imported from the package (the repo sets the same line in Directory.Build.props): the .Bind interceptor lives in this namespace. -->
+  <PropertyGroup>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);PureMarkup.Blazor.Generated</InterceptorsNamespaces>
+  </PropertyGroup>
+</Project>

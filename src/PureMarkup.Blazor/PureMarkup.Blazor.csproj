@@ -15,7 +15,30 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
     <AdditionalFiles Include="Html/html.data" />
     <AdditionalFiles Include="Css/css.data" />
-    <ProjectReference Include="..\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <InternalsVisibleTo Include="PureMarkup.Blazor.Tests" />
   </ItemGroup>
+
+  <!-- Package: the library, its source generator (analyzers/), build props/targets (build/), and the CSS build tool (tools/). -->
+  <ItemGroup>
+    <ProjectReference Include="..\PureMarkup.Blazor.CssTool\PureMarkup.Blazor.CssTool.csproj"
+                      ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" PrivateAssets="all" />
+    <None Include="build\PureMarkup.Blazor.props;build\PureMarkup.Blazor.targets" Pack="true" PackagePath="build\" />
+  </ItemGroup>
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_PureMarkupPackExtras</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+  <Target Name="_PureMarkupPackExtras">
+    <PropertyGroup>
+      <_PmGenDir>$(MSBuildThisFileDirectory)..\PureMarkup.Blazor.Generators\bin\$(Configuration)\netstandard2.0\</_PmGenDir>
+      <_PmToolDir>$(MSBuildThisFileDirectory)..\PureMarkup.Blazor.CssTool\bin\$(Configuration)\net10.0\</_PmToolDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(_PmGenDir)PureMarkup.Blazor.Generators.dll" PackagePath="analyzers\dotnet\cs\" />
+      <TfmSpecificPackageFile Include="$(_PmToolDir)PureMarkup.Blazor.CssTool.dll;$(_PmToolDir)PureMarkup.Blazor.CssTool.runtimeconfig.json;$(_PmToolDir)PureMarkup.Blazor.CssTool.deps.json"
+                              PackagePath="tools\" />
+    </ItemGroup>
+    <Error Condition="!Exists('$(_PmGenDir)PureMarkup.Blazor.Generators.dll') Or !Exists('$(_PmToolDir)PureMarkup.Blazor.CssTool.dll')"
+           Text="Build the generator and CSS tool ($(Configuration)) before packing." />
+  </Target>
 </Project>

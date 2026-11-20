@@ -7,6 +7,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- The .Bind interceptor lives in this namespace; the package will ship this line in build/*.props. -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);PureMarkup.Blazor.Generated</InterceptorsNamespaces>
+    <!-- Packages (library and templates) share one version and go to a local feed; nothing is published. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>preview.1</VersionSuffix>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts/packages/</PackageOutputPath>
+    <Authors>YAN-kyle</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
   <PropertyGroup Condition="'$(IsTestProject)' == 'true' or $(MSBuildProjectDirectory.Contains('benchmarks')) or $(MSBuildProjectDirectory.Contains('samples'))">
     <IsPackable>false</IsPackable>
