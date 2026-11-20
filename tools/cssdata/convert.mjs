@@ -2,6 +2,12 @@
 // Usage: npm pack @webref/css && tar xzf webref-css-*.tgz
 //        node convert.mjs package/css.json package/package.json > ../../src/PureMarkup.Blazor/Css/css.data
 // Names that would clash with HTML element methods or enums (read from Html/html.data) get a "Keyword" suffix.
+// Output lines (formats in the header it writes):
+//   keywords     keyword enums, one per property whose top-level alternatives hold 2+ keywords;
+//   prop         one per property without vendor prefix or legacy alias: a typed method in CssProperties<T>;
+//   alias        legacy aliases (`alias word-wrap=overflow-wrap`): no method, but names PMCSS020 accepts in `.Prop`;
+//   descriptors  @font-face descriptors (`descriptors @font-face src font-display ...`): no method, accepted by PMCSS020
+//                in `.Prop` inside `Css.FontFace` only.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
