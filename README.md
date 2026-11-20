@@ -123,6 +123,19 @@ Div().Class("raw").Class(CardCss.Card).Set(CardCss.Progress, Percent(40))   // c
   `ThemeClass.Dark` / `.Light` are the names). Switching at runtime needs no re-render: toggle the class from JS,
   `document.documentElement.classList.toggle('pm-dark')`, and every token-based value follows.
 - 747 typed properties with keyword types (`Display.Flex`) from w3c/webref (`Css/css.data`, `tools/cssdata`); `.Prop(name, value)` for the rest.
+  A constant name is checked against webref (properties, legacy aliases such as `word-wrap`, and `@font-face` descriptors
+  inside `Css.FontFace`): `PMCSS020` (warning) for an unknown name, with a near-miss suggestion (`"colr"`, `"backgroundColor"`);
+  `--custom` and `-vendor-` names and non-constant names are not checked. `PMCSS021` (info) when a typed method exists.
+- Purity: the build runs `[Stylesheet]` types and static `Preset<T>` members in a separate process with no DI, JS or app
+  environment, so analyzers flag, in those types and members (rule bodies included): `PMCSS010` (error) DI, JS or network
+  (`[Inject]`, `IServiceProvider`, `Microsoft.JSInterop`, `NavigationManager`, `HttpClient`, `Microsoft.AspNetCore.Http`,
+  `Microsoft.Extensions.{DependencyInjection,Configuration,Logging,Options,Hosting}`, ...), also as a member's type;
+  `PMCSS011` (error) the build machine (`File`, `Directory`, `FileStream`, `Environment` except `NewLine`, `Process`, registry);
+  `PMCSS012` (warning) a value that changes per build (`DateTime.Now`/`UtcNow`/`Today`, `Guid.NewGuid`, `Random`, `Stopwatch`,
+  `TimeProvider`). `PMCSS013` (warning, full builds only, not live in the IDE) when they reach such code through methods,
+  properties or static initializers of other types in the project. APIs are matched by name; not seen: code inside other
+  assemblies, virtual or interface calls, delegates passed in, reflection. A `Preset<T>` in an ordinary class also counts that
+  class's static initializers.
 - Also `.Nest`, `.Is`, `.Before`, `.Container`, `.Supports`, `Css.Global`, `Css.FontFace`, `Css.ImportLayer`, and `.Style(s => ...)` inline.
 - Setup: the package imports `build/PureMarkup.Blazor.targets` itself (project references in the repo import it, as
   `samples/Directory.Build.targets` does); add `using PureMarkup.Blazor.Styling;`.
