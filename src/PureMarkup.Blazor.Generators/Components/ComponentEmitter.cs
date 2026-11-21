@@ -46,7 +46,13 @@ internal static class ComponentEmitter
         sb.Append("namespace ").Append(ns).AppendLine(";").AppendLine();
         sb.Append("/// <summary>Typed parameters of <c>").Append(Xml(c.FullType)).AppendLine("</c>.</summary>");
         if (c.HasAnnotatedMembers)
-            sb.AppendLine("[global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"Trimming\", \"IL2111\", Justification = \"ComponentNode<T> keeps all members so the renderer can set parameters; values for annotated parameters arrive through methods that carry the same annotation.\")]");
+        {
+            // IL2111: the annotated setter; IL2110: an auto-property's annotated backing field. ILLink reports both at every
+            // ComponentNode<T> mention; the app still gets them once, at its own Comp<T>() call (as Razor's <Router> does).
+            const string why = "Justification = \"ComponentNode<T> keeps all members so the renderer can set parameters; values for annotated parameters arrive through methods that carry the same annotation.\")]";
+            sb.Append("[global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"Trimming\", \"IL2111\", ").AppendLine(why);
+            sb.Append("[global::System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage(\"Trimming\", \"IL2110\", ").AppendLine(why);
+        }
         sb.Append(consumer ? "internal" : "public").Append(" static partial class ").AppendLine(cls).AppendLine("{");
 
         var self = "global::PureMarkup.Blazor.ComponentNode<" + c.FullType + ">";
