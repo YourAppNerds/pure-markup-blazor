@@ -37,7 +37,7 @@ machine's noise: in the same 15-iteration run, `Page200` `MarkupRules` (identica
 - The table's first render is lower than Razor's on this machine and has gen-2 collections in both; treat it as noise until a longer run explains it.
 - The page gap is frame count: Razor folds static HTML into markup frames at compile time. `Static(...)` recovers it by hand;
   a generator pass that folds constant subtrees into `H.Markup(...)` is the planned fix.
-- Not measured: WebAssembly (interpreter, AOT).
+- WebAssembly (interpreter): `node benchmarks/wasm-bench.mjs`, results in [docs/wasm-benchmark.md](../docs/wasm-benchmark.md). AOT not measured yet.
 
 ## Presets (2026-11-19, M3a)
 `MarkupPresets` is `MarkupRules` with `.Use(preset)` on the score cell and the mail link (2,000 `.Use` per render). ShortRun:
