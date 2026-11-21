@@ -6,7 +6,10 @@
 //      interactive modes with sample content: Playwright clicks Counter and waits for the count to change;
 //      --all-interactive cases: the render mode sits on Routes/HeadOutlet in App.cs, no page has its own, and with
 //      WebAssembly/Auto the routes, layout and pages are in the .Client project;
-//   3. adds pages with the item template (puremarkup-blazor-page) and checks they compile and route.
+//   3. adds pages with the item template (puremarkup-blazor-page) and checks they compile and route;
+//   4. publish cases: dotnet publish -c Release (trimmed WebAssembly), run the output from the publish folder with
+//      ASPNETCORE_ENVIRONMENT=Production, check blazor.web.js has its real content, and click Counter again
+//      (Auto: a second load that runs on WebAssembly).
 // Usage: node scripts/verify-template.mjs [--scratch <dir>] [--only <case>,...] [--no-pack]
 // Needs the .NET 10 SDK and Playwright (cd samples/WebApp && npm ci && npx playwright install chromium).
 import { spawn, spawnSync } from 'node:child_process';
@@ -31,12 +34,12 @@ const cases = [
   { name: 'Wasm', interactivity: 'WebAssembly' },
   { name: 'Auto', interactivity: 'Auto' },
   { name: 'NoneSample', interactivity: 'None', sample: true },
-  { name: 'ServerSample', interactivity: 'Server', sample: true },
-  { name: 'WasmSample', interactivity: 'WebAssembly', sample: true },
-  { name: 'AutoSample', interactivity: 'Auto', sample: true },
+  { name: 'ServerSample', interactivity: 'Server', sample: true, publish: true },
+  { name: 'WasmSample', interactivity: 'WebAssembly', sample: true, publish: true },
+  { name: 'AutoSample', interactivity: 'Auto', sample: true, publish: true },
   { name: 'AutoGlobal', interactivity: 'Auto', global: true },
   { name: 'ServerGlobalSample', interactivity: 'Server', sample: true, global: true },
-  { name: 'WasmGlobalSample', interactivity: 'WebAssembly', sample: true, global: true },
+  { name: 'WasmGlobalSample', interactivity: 'WebAssembly', sample: true, global: true, publish: true },
   { name: 'AutoGlobalSample', interactivity: 'Auto', sample: true, global: true },
 ].filter(c => !only || only.includes(c.name));
 
@@ -64,12 +67,11 @@ function filesUnder(dir, out = []) {
   return out;
 }
 
-async function startApp(projectDir, name) {
-  const dll = path.join(projectDir, 'bin', 'Debug', 'net10.0', `${name}.dll`);
+async function startApp(projectDir, name, { dll = path.join(projectDir, 'bin', 'Debug', 'net10.0', `${name}.dll`), environment = 'Development' } = {}) {
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
   const child = spawn('dotnet', [dll, '--urls', url], {
-    cwd: projectDir, env: { ...env, ASPNETCORE_ENVIRONMENT: 'Development' }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: projectDir, env: { ...env, ASPNETCORE_ENVIRONMENT: environment }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   children.add(child);
   let log = '';
@@ -94,6 +96,25 @@ process.on('exit', () => { for (const c of children) stop(c); });
 async function get(url) {
   const r = await fetch(url);
   return { status: r.status, text: await r.text() };
+}
+
+// Clicks the Counter button until the count changes (an interactive render mode may take a while to start).
+async function clickCounter(page) {
+  const status = page.locator('[role=status]');
+  let count = 'Current count: 0';
+  for (let i = 0; i < 60 && count === 'Current count: 0'; i++) {
+    await page.click('button');
+    await page.waitForTimeout(500);
+    count = await status.textContent();
+  }
+  return count;
+}
+
+function watchProblems(page) {
+  const problems = [];
+  page.on('pageerror', e => problems.push(`pageerror: ${e.message}`));
+  page.on('console', m => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
+  return problems;
 }
 
 // 1. Pack and install into a throwaway hive.
@@ -204,9 +225,7 @@ async function verifyCase(c) {
     check(missing.status === 404 && missing.text.includes('Not Found'), 'unknown URL: 404 with the NotFound page');
 
     const page = await browser.newPage();
-    const problems = [];
-    page.on('pageerror', e => problems.push(`pageerror: ${e.message}`));
-    page.on('console', m => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
+    const problems = watchProblems(page);
     try {
       await page.goto(app.url + '/');
       const bg = await page.$eval('body', e => getComputedStyle(e).backgroundColor);
@@ -223,12 +242,7 @@ async function verifyCase(c) {
         await page.goto(app.url + '/counter');
         const status = page.locator('[role=status]');
         check((await status.textContent()) === 'Current count: 0', '/counter prerenders');
-        let count = 'Current count: 0';
-        for (let i = 0; i < 60 && count === 'Current count: 0'; i++) {
-          await page.click('button');
-          await page.waitForTimeout(500);
-          count = await status.textContent();
-        }
+        const count = await clickCounter(page);
         check(count !== 'Current count: 0', `Counter click increments (${count}) under ${c.interactivity}`);
         await page.mouse.move(0, 0); // off the button: its :hover color differs
         const btn = await page.$eval('button', e => getComputedStyle(e).backgroundColor);
@@ -243,6 +257,49 @@ async function verifyCase(c) {
       check(problems.length === 0, `no browser errors${problems.length ? ': ' + problems.join('; ') : ''}`);
     } finally {
       await page.close();
+    }
+  } finally {
+    app.stop();
+  }
+
+  if (c.publish) await verifyPublish(c, name, out, serverDir);
+}
+
+// 4. A real Release publish, run from the publish folder in Production (no launchSettings, no dev static-asset fallback).
+async function verifyPublish(c, name, out, serverDir) {
+  const pub = path.join(out, 'publish');
+  run('dotnet', ['publish', serverDir, '-c', 'Release', '-o', pub, '-nologo', '-v', 'q'], scratch);
+  check(true, 'publish -c Release');
+  const app = await startApp(pub, name, { dll: path.join(pub, `${name}.dll`), environment: 'Production' });
+  try {
+    const home = await get(app.url + '/');
+    check(home.status === 200, 'Production: GET / 200');
+    const fingerprinted = home.text.match(/src="(_framework\/blazor\.web\.[^"]+\.js)"/)?.[1];
+    for (const u of ['_framework/blazor.web.js', fingerprinted]) {
+      const r = await get(`${app.url}/${u}`);
+      check(r.status === 200 && r.text.length > 100000 && r.text.includes('Blazor'), `Production: GET ${u} 200, ${r.text.length} chars of blazor.web.js`);
+    }
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const problems = watchProblems(page);
+    try {
+      await page.goto(app.url + '/counter');
+      const count = await clickCounter(page);
+      check(count !== 'Current count: 0', `Production: Counter click increments (${count}) under ${c.interactivity}`);
+      if (c.interactivity === 'Auto') {
+        // The first visit ran on Server while the WebAssembly runtime downloaded; a new load runs on WebAssembly.
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(2000);
+        const sockets = [];
+        page.on('websocket', ws => sockets.push(ws.url()));
+        await page.goto(app.url + '/counter');
+        const again = await clickCounter(page);
+        check(again !== 'Current count: 0' && !sockets.some(u => u.includes('_blazor')),
+          `Production: Auto second load increments (${again}) on WebAssembly (no circuit)`);
+      }
+      check(problems.length === 0, `Production: no browser errors${problems.length ? ': ' + problems.join('; ') : ''}`);
+    } finally {
+      await ctx.close();
     }
   } finally {
     app.stop();
