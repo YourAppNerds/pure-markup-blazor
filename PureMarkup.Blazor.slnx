@@ -2,6 +2,7 @@
   <Folder Name="/benchmarks/">
     <Project Path="benchmarks/Baseline/Baseline.csproj" />
     <Project Path="benchmarks/PureMarkup.Blazor.Benchmarks/PureMarkup.Blazor.Benchmarks.csproj" />
+    <Project Path="benchmarks/WasmBench/WasmBench.csproj" />
   </Folder>
   <Folder Name="/samples/" />
   <Folder Name="/samples/WebApp/">

@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
-  <!-- Razor baseline: the same pages written as .razor, compiled by the Razor SDK. -->
+  <!-- Razor baseline: the same pages written as .razor, compiled by the Razor SDK.
+       Components package, not the shared framework, so WasmBench can run it in the browser too. -->
   <PropertyGroup>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
   </ItemGroup>
 </Project>

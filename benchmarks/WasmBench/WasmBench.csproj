@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <!-- Table 1,000 rows in the browser: Razor (Baseline) vs PureMarkup, through the real WebAssembly renderer and DOM.
+       Run: node benchmarks/wasm-bench.mjs -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);BL0006</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <ProjectReference Include="..\..\src\PureMarkup.Blazor\PureMarkup.Blazor.csproj" />
+    <ProjectReference Include="..\..\src\PureMarkup.Blazor.Generators\PureMarkup.Blazor.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Baseline\Baseline.csproj" />
+    <!-- The same markup pages BenchmarkDotNet measures on the server. -->
+    <Compile Include="..\PureMarkup.Blazor.Benchmarks\BenchMarkup.cs;..\PureMarkup.Blazor.Benchmarks\MarkupTable1000.cs" LinkBase="Shared" />
+  </ItemGroup>
+</Project>
