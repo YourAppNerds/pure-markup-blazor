@@ -39,5 +39,17 @@ Interpreter (no AOT), trimmed Release publish, .NET 10.0.14, Chromium 158, Ryzen
 - The ratio is close to the server's (1.13x re-render). Building the tree costs more than Razor's generated code, which
   writes frames directly; the diff and DOM work are the same, so the gap shrinks in the full re-render.
 - First render is lower for Markup, as on the server. Neither number has been explained yet; treat it with care.
-- Not measured: AOT (workload missing, see [trimming-aot.md](trimming-aot.md#webassembly-aot)), the `Page200` page,
-  and rules or presets (`MarkupRules`, `MarkupPresets`, which need the CSS build step).
+- Not measured: the `Page200` page, and rules or presets (`MarkupRules`, `MarkupPresets`, which need the CSS build step).
+
+## AOT results (2026-11-21)
+`--aot`: `RunAOTCompilation=true`, trimmed Release publish, .NET 10.0.15, same machine and browser. One run of 7 rounds:
+
+| Table 1,000 rows (AOT) | Razor | Markup | Ratio |
+|---|--:|--:|--:|
+| Re-render (build + diff + DOM) | 2.05 ms | 2.12 ms | **1.04x** |
+| BuildRenderTree only | 0.77 ms | 1.11 ms | 1.45x |
+| First render (+ DOM) | 24.70 ms | 14.70 ms | 0.60x |
+
+- AOT makes the re-render about 5.5 times faster than the interpreter for both.
+- The re-render gap almost closes (1.04x): diff and DOM work dominate once tree building is compiled.
+- First render is still lower for Markup, unexplained, as above.

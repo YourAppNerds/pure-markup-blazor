@@ -6,7 +6,7 @@ Back to the [README](../README.md). Checked 2026-11-21 with .NET SDK 10.0.403 (r
 - Trimmed WebAssembly publish: **0 warnings from PureMarkup**. The rest come from the framework, and a stock
   `dotnet new blazor` app gets the same ones.
 - `PureMarkup.Blazor` shrinks from 531 KB to 44 to 54 KB after trimming (16 to 20 KB Brotli).
-- WebAssembly AOT: not run. The `wasm-tools` workload is not installed on this machine (see below).
+- WebAssembly AOT: publish works, 0 warnings from PureMarkup, same 6 framework warnings (see below).
 - Server Native AOT: not supported by Blazor Server, so not tried.
 - A Release publish run in Production works for Server, WebAssembly and Auto. The first check found a template bug
   (WebAssembly pages trimmed away); it is fixed and now covered by `scripts/verify-template.mjs`.
@@ -56,16 +56,14 @@ Razor apps have the same rule. The template now sets `EnableTrimAnalyzer` instea
 ## WebAssembly AOT
 ```
 dotnet publish samples/WebApp/WebApp -c Release -p:RunAOTCompilation=true
-error NETSDK1147: To build this project, the following workloads must be installed: wasm-tools
-error NETSDK1147: To install these workloads, run the following command: dotnet workload restore
 ```
-
-To do (Kyle, admin shell; the workloads on this machine came with Visual Studio, so the Visual Studio Installer's
-".NET WebAssembly Build Tools" component works too):
-```
-dotnet workload install wasm-tools
-```
-Then rerun the publish above and `node benchmarks/wasm-bench.mjs --aot` (see [wasm-benchmark.md](wasm-benchmark.md)).
+- Needs the `wasm-tools` workload (`dotnet workload install wasm-tools`, admin shell, or the Visual Studio Installer's
+  ".NET WebAssembly Build Tools" component). Without it the publish fails with NETSDK1147.
+- Checked 2026-11-21 (.NET 10.0.15): the publish succeeds and the AOT build runs in Chromium (see
+  [wasm-benchmark.md](wasm-benchmark.md)).
+- With trim warnings shown (`-p:SuppressTrimAnalysisWarnings=false -p:TrimmerSingleWarn=false`) the trimmer reports the
+  same 6 framework warnings as the trimmed publish and none from PureMarkup. This repo sets `TreatWarningsAsErrors`, so
+  those 6 fail the publish here (NETSDK1144); an app without that setting just sees warnings.
 
 ## Server Native AOT
 Not tried. ASP.NET Core's Native AOT supports minimal APIs and gRPC, but not Blazor Server (interactive server rendering
