@@ -6,7 +6,7 @@ Back to the [README](../README.md).
 The packages are on nuget.org as a preview. Install the templates:
 
 ```
-dotnet new install PureMarkup.Blazor.Templates::0.1.0-preview.1
+dotnet new install PureMarkup.Blazor.Templates@0.1.0-preview.1
 ```
 
 ### Use a local build

@@ -108,7 +108,7 @@ Nodes are only valid during the render that built them.
 
 ## Get started
 ```
-dotnet new install PureMarkup.Blazor.Templates::0.1.0-preview.1
+dotnet new install PureMarkup.Blazor.Templates@0.1.0-preview.1
 dotnet new puremarkup-blazor -o MyApp --interactivity Auto --sample-content
 ```
 A Blazor Web App like `dotnet new blazor`, with no `.razor` or `.html` files. Interactivity is per page
