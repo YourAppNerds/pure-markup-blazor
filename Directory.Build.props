@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- The .Bind interceptor lives in this namespace; the package will ship this line in build/*.props. -->
     <InterceptorsNamespaces>$(InterceptorsNamespaces);PureMarkup.Blazor.Generated</InterceptorsNamespaces>
-    <!-- Packages (library and templates) share one version and go to a local feed; nothing is published. -->
+    <!-- Packages (library and templates) share one version. A tag v<Version> publishes them to nuget.org (.github/workflows/release.yml). -->
     <VersionPrefix>0.1.0</VersionPrefix>
     <VersionSuffix>preview.2</VersionSuffix>
     <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts/packages/</PackageOutputPath>
