@@ -9,6 +9,7 @@
     <Title>PureMarkup.Blazor templates</Title>
     <Description>dotnet new templates for Blazor Web Apps written in C# markup with PureMarkup.Blazor: no .razor or .html files.</Description>
     <PackageTags>dotnet-new;templates;blazor;puremarkup</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <TargetFramework>netstandard2.0</TargetFramework>
     <IncludeContentInPack>true</IncludeContentInPack>
     <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -26,6 +27,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.TemplateEngine.Authoring.Tasks" PrivateAssets="all" />
     <Content Include="content\**\*" Exclude="content\**\bin\**;content\**\obj\**" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- The generated projects reference PureMarkup.Blazor at the version packed alongside (one version for both packages). -->
