@@ -1,0 +1,73 @@
+# Publishes PureMarkup.Blazor and PureMarkup.Blazor.Templates to nuget.org.
+# Trigger: push a tag v<Version>, for example v0.1.0-preview.2. The tag must match VersionPrefix and
+# VersionSuffix in Directory.Build.props, and the template projects must reference the same version.
+# Run it by hand (workflow_dispatch) to build, test and pack without publishing.
+# Auth: NuGet Trusted Publishing (policy "pure-markup-blazor-release" on nuget.org, workflow release.yml).
+# No API key is stored. Set the repository variable NUGET_USER to the nuget.org profile name that owns
+# the policy.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # needed for Trusted Publishing
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check versions
+        id: version
+        run: |
+          v=$(dotnet msbuild src/PureMarkup.Blazor/PureMarkup.Blazor.csproj -getProperty:Version)
+          echo "library $v"
+          bad=$(grep -rhoE 'Include="PureMarkup\.Blazor" Version="[^"]+"' templates/PureMarkup.Blazor.Templates/content \
+                | grep -v "Version=\"$v\"" || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Template content references another version: $bad"; exit 1
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$v" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match version v$v"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: dotnet test PureMarkup.Blazor.slnx -c Release
+
+      - name: Pack
+        run: |
+          dotnet pack src/PureMarkup.Blazor -c Release -o artifacts/packages
+          dotnet pack templates/PureMarkup.Blazor.Templates -c Release -o artifacts/packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ steps.version.outputs.version }}
+          path: artifacts/packages/
+
+      - name: NuGet login (Trusted Publishing)
+        if: github.ref_type == 'tag'
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # Pushing a .nupkg also pushes the .snupkg next to it.
+      - name: Push to nuget.org
+        if: github.ref_type == 'tag'
+        run: |
+          for f in artifacts/packages/*.nupkg; do
+            dotnet nuget push "$f" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" \
+              --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
