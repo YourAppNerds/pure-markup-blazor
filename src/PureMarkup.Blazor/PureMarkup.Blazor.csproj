@@ -2,6 +2,7 @@
   <PropertyGroup>
     <RootNamespace>PureMarkup.Blazor</RootNamespace>
     <Description>C# markup for Blazor: components, pages and layouts without .razor files.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <!-- Sequence numbers are computed at runtime by design (slot in parent). -->
@@ -25,6 +26,19 @@
                       ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" PrivateAssets="all" />
     <None Include="build\PureMarkup.Blazor.props;build\PureMarkup.Blazor.targets" Pack="true" PackagePath="build\" />
   </ItemGroup>
+  <!-- NuGet readme: the repo README with relative links rewritten to absolute GitHub URLs. -->
+  <Target Name="_PureMarkupPackReadme" BeforeTargets="_GetPackageFiles;GenerateNuspec">
+    <PropertyGroup>
+      <_PmReadmeOut>$(IntermediateOutputPath)PACKAGE.README.md</_PmReadmeOut>
+      <_PmReadmeText>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\README.md'))</_PmReadmeText>
+      <_PmReadmeText>$([System.Text.RegularExpressions.Regex]::Replace('$(_PmReadmeText)', '\]\((?!https?:|#|mailto:)([^)\s]+)\)', '](https://github.com/YourAppNerds/pure-markup-blazor/blob/main/$1)'))</_PmReadmeText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_PmReadmeOut)" Lines="$(_PmReadmeText)" Overwrite="true" />
+    <ItemGroup>
+      <None Include="$(_PmReadmeOut)" Pack="true" PackagePath="README.md" />
+      <FileWrites Include="$(_PmReadmeOut)" />
+    </ItemGroup>
+  </Target>
   <PropertyGroup>
     <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_PureMarkupPackExtras</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
