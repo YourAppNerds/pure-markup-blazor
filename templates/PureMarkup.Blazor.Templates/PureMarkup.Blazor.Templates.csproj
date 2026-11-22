@@ -20,6 +20,7 @@
     <!-- Microsoft.TemplateEngine.Authoring.Tasks: validates template.json on pack; no localization files. -->
     <EnableTemplateValidation>true</EnableTemplateValidation>
     <LocalizeTemplates>false</LocalizeTemplates>
+    <IncludeSymbols>false</IncludeSymbols>
   </PropertyGroup>
 
   <ItemGroup>
