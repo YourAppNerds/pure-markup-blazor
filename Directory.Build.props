@@ -9,7 +9,7 @@
     <InterceptorsNamespaces>$(InterceptorsNamespaces);PureMarkup.Blazor.Generated</InterceptorsNamespaces>
     <!-- Packages (library and templates) share one version and go to a local feed; nothing is published. -->
     <VersionPrefix>0.1.0</VersionPrefix>
-    <VersionSuffix>preview.1</VersionSuffix>
+    <VersionSuffix>preview.2</VersionSuffix>
     <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts/packages/</PackageOutputPath>
     <Authors>YourAppNerds</Authors>
     <Company>YourAppNerds</Company>

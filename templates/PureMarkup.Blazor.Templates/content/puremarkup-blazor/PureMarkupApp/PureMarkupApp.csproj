@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PureMarkup.Blazor" Version="0.1.0-preview.1" />
+    <PackageReference Include="PureMarkup.Blazor" Version="0.1.0-preview.2" />
 <!--#if (UseWebAssembly) -->
     <ProjectReference Include="..\PureMarkupApp.Client\PureMarkupApp.Client.csproj" />
 <!--#if (IsNet11) -->

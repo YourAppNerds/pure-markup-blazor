@@ -6,7 +6,7 @@ Back to the [README](../README.md).
 The packages are on nuget.org as a preview. Install the templates:
 
 ```
-dotnet new install PureMarkup.Blazor.Templates@0.1.0-preview.1
+dotnet new install PureMarkup.Blazor.Templates@0.1.0-preview.2
 ```
 
 ### Use a local build
@@ -15,12 +15,12 @@ To try changes from this repo, build both packages into the local feed `artifact
 ```
 dotnet pack src/PureMarkup.Blazor -c Release                      # library, generator, build files, CSS tool
 dotnet pack templates/PureMarkup.Blazor.Templates -c Release      # both go to artifacts/packages (local feed)
-dotnet new install artifacts/packages/PureMarkup.Blazor.Templates.0.1.0-preview.1.nupkg
+dotnet new install artifacts/packages/PureMarkup.Blazor.Templates.0.1.0-preview.2.nupkg
 dotnet nuget add source <repo>/artifacts/packages -n puremarkup-local
 ```
 
 A local build has the same version as the nuget.org package, and NuGet keeps whichever copy it cached first. After each
-repack, delete `puremarkup.blazor/0.1.0-preview.1` from the global packages folder
+repack, delete `puremarkup.blazor/0.1.0-preview.2` from the global packages folder
 (`dotnet nuget locals global-packages --list` shows where it is).
 
 ## Create an app

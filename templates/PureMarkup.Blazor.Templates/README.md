@@ -5,7 +5,7 @@ in C# markup, with no `.razor` or `.html` files and CSS written in C#.
 An independent project for Blazor; not affiliated with Microsoft.
 
 ```
-dotnet new install PureMarkup.Blazor.Templates@0.1.0-preview.1
+dotnet new install PureMarkup.Blazor.Templates@0.1.0-preview.2
 dotnet new puremarkup-blazor -o MyApp --interactivity Auto --sample-content
 dotnet new puremarkup-blazor-page -n Orders -o Components/Pages        # inside a restored project
 ```
