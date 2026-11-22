@@ -1,6 +1,6 @@
 {
   "$schema": "http://json.schemastore.org/template",
-  "author": "YAN-kyle",
+  "author": "YourAppNerds",
   "classifications": [ "Web", "Blazor", "WebAssembly", "PureMarkup" ],
   "identity": "PureMarkup.Blazor.WebApp.CSharp",
   "groupIdentity": "PureMarkup.Blazor.WebApp",
