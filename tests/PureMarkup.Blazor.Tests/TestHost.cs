@@ -91,5 +91,8 @@ sealed class TestRenderer() : Renderer(new ServiceCollection().BuildServiceProvi
     }
 
     public void Fire(int componentId, string eventName, EventArgs args, int nth = 0) =>
-        DispatchEventAsync(Handler(componentId, eventName, nth), null, args).GetAwaiter().GetResult();
+        FireAsync(componentId, eventName, args, nth).GetAwaiter().GetResult();
+
+    public Task FireAsync(int componentId, string eventName, EventArgs args, int nth = 0) =>
+        DispatchEventAsync(Handler(componentId, eventName, nth), null, args);
 }

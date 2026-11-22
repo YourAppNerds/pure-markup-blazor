@@ -52,10 +52,12 @@ public sealed class Counter : MarkupComponent
 {
     public int Count;
     public string? LastKey;
+    /// <summary>The async handler waits on this; the test completes it.</summary>
+    public TaskCompletionSource Gate = new();
     protected override Node Render() => Fragment(
         P().Text($"Count: {Count}"),
         Button().Type(ButtonType.Button).OnClick(() => Count++).Text("+"),
-        Button().OnClick(async (MouseEventArgs e) => { await Task.Yield(); Count += 10; }).Text("+10"),
+        Button().OnClick(async (MouseEventArgs e) => { await Gate.Task; Count += 10; }).Text("+10"),
         Input().OnKeyDown((KeyboardEventArgs e) => LastKey = e.Key).PreventDefault("onkeydown").StopPropagation("onkeydown"));
 }
 
@@ -207,16 +209,19 @@ public class RenderingTests
     }
 
     [Fact]
-    public void Events_ReRenderTheOwner_AllHandlerShapes()
+    public async Task Events_ReRenderTheOwner_AllHandlerShapes()
     {
         var r = new TestRenderer();
         var c = new Counter();
         var id = r.Render(c);
         r.Fire(id, "onclick", new MouseEventArgs());
         Assert.Equal(1, c.Count);
-        r.Fire(id, "onclick", new MouseEventArgs(), nth: 1);
+        var click = r.FireAsync(id, "onclick", new MouseEventArgs(), nth: 1);
+        Assert.False(click.IsCompleted);
+        c.Gate.SetResult();
+        await click;
         Assert.Equal(11, c.Count);
-        Assert.Contains("Count: 11", FrameText(r, id));
+        Assert.Contains("Count: 11", FrameText(r, id)); // rendered again on completion
         r.Fire(id, "onkeydown", new KeyboardEventArgs { Key = "Enter" });
         Assert.Equal("Enter", c.LastKey);
     }

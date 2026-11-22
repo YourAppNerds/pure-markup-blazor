@@ -67,6 +67,8 @@ public sealed class TypedCallbacks : MarkupComponent
     public int Renders;
     public readonly List<string> Log = [];
     public readonly InputText?[] Inputs = new InputText?[5];
+    /// <summary>The async handlers wait on this; the test completes it, so the continuation runs on the test thread.</summary>
+    public TaskCompletionSource Gate = new();
 
     protected override Node Render()
     {
@@ -74,8 +76,8 @@ public sealed class TypedCallbacks : MarkupComponent
         return Comp<EditForm>().Model(M).ChildContent(_ => Fragment(
             Input(0).ValueChanged(() => Log.Add("action")),
             Input(1).ValueChanged((string? v) => Log.Add("action-of:" + v)),
-            Input(2).ValueChanged(async () => { await Task.Yield(); Log.Add("func"); }),
-            Input(3).ValueChanged(async (string? v) => { await Task.Yield(); Log.Add("func-of:" + v); }),
+            Input(2).ValueChanged(async () => { await Gate.Task; Log.Add("func"); }),
+            Input(3).ValueChanged(async (string? v) => { await Gate.Task; Log.Add("func-of:" + v); }),
             Input(4).ValueChanged(EventCallback.Factory.Create<string?>(this, v => Log.Add("callback:" + v)))));
     }
 
@@ -142,7 +144,17 @@ public class ComponentParameterTests
         for (var i = 0; i < 5; i++)
         {
             var before = owner.Renders;
-            await owner.Inputs[i]!.ValueChanged.InvokeAsync("v" + i);
+            owner.Gate = new TaskCompletionSource();
+            var invocation = owner.Inputs[i]!.ValueChanged.InvokeAsync("v" + i);
+            if (renders[i] == 2)
+            {
+                // Still pending: ComponentBase has rendered once and waits for the handler. The test completes it, so the
+                // handler cannot finish before ComponentBase looks at the task (with Task.Yield it sometimes did: 1 render).
+                Assert.False(invocation.IsCompleted);
+                Assert.Equal(before + 1, owner.Renders);
+                owner.Gate.SetResult();
+            }
+            await invocation;
             Assert.Equal(expected[i], owner.Log[^1]);
             Assert.Equal(before + renders[i], owner.Renders); // the receiver is the owner, as with Razor's @bind / On*
         }
